@@ -1,0 +1,21 @@
+{
+  "name": "tv_grab_kr",
+  "version": "1.0.0",
+  "description": "",
+  "main": "tv_grab_kr.js",
+  "scripts": {
+    "start": "node tv_grab_kr.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "axfree@live.com",
+  "license": "ISC",
+  "dependencies": {
+    "date-util": "^1.2.1",
+    "fs": "0.0.2",
+    "minimist": "^1.2.0",
+    "net": "^1.0.2",
+    "pretty-data": "^0.40.0",
+    "sync-request": "^2.1.0",
+    "xml-writer": "^1.6.0"
+  }
+}

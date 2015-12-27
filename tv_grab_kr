@@ -1,0 +1,2 @@
+#!/bin/sh
+node /opt/bin/tv_grab_kr.js $*
