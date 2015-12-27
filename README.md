@@ -10,7 +10,7 @@ nodejs
 
 Running
 ======= 
-
+<pre>
 Usage: node tv_grab_kr.js [OPTION]
 Options:
   -e, --exclude-channel=CH1,CH2,... specify the channels to be excluded by using comma separated list
@@ -21,3 +21,4 @@ Options:
   -o, --offset=X                    start with data for day today plus X days
   -w, --output=FILENAME             redirect xmltv output to the specified file
   -s, --sock=SOCKET                 redirect xmltv output to the specified XMLTV socket
+</pre>
