@@ -8,8 +8,22 @@ Prerequisits
 
 nodejs
 
-Running
-======= 
+Installation
+============
+
+<pre>
+# cd /usr/local
+# git clone https://github.com/axfree/tv_grab_kr.git
+# cd tv_grab_kr
+# npm install
+# cd ../bin
+# ln -s ../tv_grab_kr/tv_grab_kr .
+# tv_grab_kr -h
+</pre>
+
+Usage
+=====
+
 <pre>
 Usage: node tv_grab_kr.js [OPTION]
 Options:
