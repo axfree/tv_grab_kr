@@ -225,6 +225,7 @@ for (var id in channels) {
                                       .writeAttribute('stop', end.format("yyyymmddHHMMss o"))
                                       .writeAttribute('channel', channelId)
                                       .startElement('title').writeAttribute('lang', 'kr').text(program.scheduleName).endElement()
+                                      .startElement('sub-title').writeAttribute('lang', 'kr').text(program.subtitle).endElement()
                                       .writeElement('language', 'kr');
         if (genres[program.largeGenreId])
             prog.startElement('category').writeAttribute('lang', 'kr').text(genres[program.largeGenreId]).endElement();
