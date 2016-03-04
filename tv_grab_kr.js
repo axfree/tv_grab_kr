@@ -42,7 +42,7 @@ var argv = minimist(process.argv.slice(2), {
         'days': 'n',
         'offset': 'o',
         'output': 'w',
-		'sock': 's',
+        'sock': 's',
         'description': 'd',
         'version': 'v'
     }
@@ -236,6 +236,9 @@ for (var id in channels) {
         if (program.episodeNo)
             prog.startElement('episode-num').writeAttribute('system', 'onscreen').text(program.episodeNo).endElement();
         
+        if (program.rebroadcast)
+            prog.startElement('previously-shown').endElement();
+
         prog.startElement('rating').writeAttribute('system', 'VCHIP')
                                    .writeElement('value', (program.ageRating == 0) ? '모든 연령 시청가' : program.ageRating + '세 이상 시청가');
         prog.endElement();
