@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-var request   = require("sync-request");
+var co        = require("co");
+var request   = require("co-request");
 var XMLWriter = require('xml-writer');
 var pd        = require('pretty-data').pd;
                 require('date-util');
@@ -50,221 +51,223 @@ var argv = minimist(process.argv.slice(2), {
 
 //console.log(process.argv);
 
-if (argv.h) {
-    console.log(
-        'Usage: node tv_grab_kr.js [OPTION]\n' +
-        'Options:\n' +
-        '  -e, --exclude-channel=CH1,CH2,... specify the channels to be excluded by using comma separated list\n' +
-        '  -g, --channel-group=GR1,GR2,...   select channel group\n' +
-        '  -h, --help                        show usage information\n' +
-        '  -l, --list-channel-group          list all available channel group\n' +
-        '  -n, --days=X                      supply data for X days\n' +
-        '  -o, --offset=X                    start with data for day today plus X days\n' +
-        '  -w, --output=FILENAME             redirect xmltv output to the specified file\n' +
-        '  -s, --sock=SOCKET                 redirect xmltv output to the specified XMLTV socket\n'
-    );
+co(function* () {
+    if (argv.h) {
+        console.log(
+            'Usage: node tv_grab_kr.js [OPTION]\n' +
+            'Options:\n' +
+            '  -e, --exclude-channel=CH1,CH2,... specify the channels to be excluded by using comma separated list\n' +
+            '  -g, --channel-group=GR1,GR2,...   select channel group\n' +
+            '  -h, --help                        show usage information\n' +
+            '  -l, --list-channel-group          list all available channel group\n' +
+            '  -n, --days=X                      supply data for X days\n' +
+            '  -o, --offset=X                    start with data for day today plus X days\n' +
+            '  -w, --output=FILENAME             redirect xmltv output to the specified file\n' +
+            '  -s, --sock=SOCKET                 redirect xmltv output to the specified XMLTV socket\n'
+        );
     
-    return 0;
-}
+        return 0;
+    }
 
-// tv_grab --description option
-if (argv.description) {
-    console.log('tv_grab_kr grabber by axfree');
-    return 0;
-}
+    // tv_grab --description option
+    if (argv.description) {
+        console.log('tv_grab_kr grabber by axfree');
+        return 0;
+    }
 
-// tv_grab --capabilities option
-if (argv.capabilities) {
-    console.log('baseline');
-    return 0;
-}
+    // tv_grab --capabilities option
+    if (argv.capabilities) {
+        console.log('baseline');
+        return 0;
+    }
 
-// tv_grab --days option
-if (argv.days) {
-    config.days = argv.days;
-}
+    // tv_grab --days option
+    if (argv.days) {
+        config.days = argv.days;
+    }
 
-// tv_grab --offset option
-if (argv.offset) {
-    config.offset = argv.offset;
-}
+    // tv_grab --offset option
+    if (argv.offset) {
+        config.offset = argv.offset;
+    }
 
-// tv_grab --output option
-if (argv.output) {
-    config.output = argv.output;
-}
+    // tv_grab --output option
+    if (argv.output) {
+        config.output = argv.output;
+    }
 
-// tv_grab v option
-if (argv.version) {
-    console.log('0.1');
-    return 0;
-}
+    // tv_grab v option
+    if (argv.version) {
+        console.log('0.1');
+        return 0;
+    }
 
-// tv_grab --output option
-if (argv.sock) {
-    config.sock = argv.sock;
-}
+    // tv_grab --output option
+    if (argv.sock) {
+        config.sock = argv.sock;
+    }
 
-if (argv.l) {
-    // list all available channel groups
-    for (var broadcastType in broadcastTypes) {
-        var res = request('POST', 'http://tvguide.naver.com/api/channelGroup/list.nhn', {
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'User-Agent': ua
-            },
-            body: 'broadcastType=' + broadcastType
-        })
-        
-        var channelGroupList = JSON.parse(res.getBody('utf-8'));
-        
-        channelGroupList.result.forEach(function (channelGroup) {
-            console.log((' ' + channelGroup.channelGroupNo).slice(-2) + ': ' + broadcastTypes[broadcastType] + '-' + channelGroup.channelGroupName);
+    if (argv.l) {
+        // list all available channel groups
+        for (var broadcastType in broadcastTypes) {
+            var res = yield request.post('http://tvguide.naver.com/api/channelGroup/list.nhn', {
+                headers: {
+                    'User-Agent': ua
+                },
+                form: { broadcastType: broadcastType }
+            })
+
+            var channelGroupList = JSON.parse(res.body);
+
+            channelGroupList.result.forEach(function (channelGroup) {
+                console.log((' ' + channelGroup.channelGroupNo).slice(-2) + ': ' + broadcastTypes[broadcastType] + '-' + channelGroup.channelGroupName);
+            })
+        }
+
+        return 0;
+    }
+
+    if (argv.g) {
+        config.channelGroups = argv.g.toString().split(',');
+    }
+
+    if (argv.e) {
+        argv.e.toString().split(',').forEach(function (c) {
+            config.excludedChannels[c] = true
         })
     }
+
+    // console.log(pd.json(config));
+    var date = new Date();
+    date.setHours(24 * config.offset, 0, 0, 0);
+
+    var tzOffset = (date.getTimezoneOffset() - (-9 * 60)) * 60 * 1000;
+    if (tzOffset != 0)
+        config.days++;
+
+    var channels = {};
+
+    for (var d = 0; d < config.days; d++) {
+        var krDate = new Date(date.getTime() + tzOffset);
     
-    return 0;
-}
-
-if (argv.g) {
-    config.channelGroups = argv.g.toString().split(',');
-}
-
-if (argv.e) {
-    argv.e.toString().split(',').forEach(function (c) {
-        config.excludedChannels[c] = true
-    })
-}
-
-// console.log(pd.json(config));
-
-var date = new Date();
-date.setHours(24 * config.offset, 0, 0, 0);
-
-var tzOffset = (date.getTimezoneOffset() - (-9 * 60)) * 60 * 1000;
-if (tzOffset != 0)
-    config.days++;
-
-var channels = {};
-
-for (var d = 0; d < config.days; d++) {
-    var krDate = new Date(date.getTime() + tzOffset);
-    
-    config.channelGroups.forEach(function (channelGroup) {
-        var res = request('GET', "http://tvguide.naver.com/program/multiChannel.nhn?" +
-                "channelGroup=" + channelGroup + "&date=" + krDate.format("yyyymmdd"), {
-            headers: {
-                'User-Agent': ua
-            }
-        });
-    
-        var m = res.getBody('utf-8').match(/var PROGRAM_SCHEDULES=({[^]*?});/)
-        if (m && m.length > 0) {
-            var schedule = JSON.parse(m[1]);
-            schedule.channelList.forEach(function (channel) {
-                if (channel.channelId in config.excludedChannels || channel.channelName in config.excludedChannels) {
-                    //console.log('skipping channel ' + channel.channelId)
-                    return
-                }
-                
-                channel.programList = channel.programList.filter(function (program) {
-                    var start = new Date(program.beginDate + 'T' + program.beginTime + '+09:00');
-                    return start >= date && start.getTime() < date.getTime() + 24 * 60 * 60 * 1000;
-                });
-                
-                var ch = channels[channel.channelId];
-                if (ch) {
-                    // append programs to the existing channel
-                    ch.programList = ch.programList.concat(channel.programList);
-                }
-                else {
-                    // create new channel
-                    channels[channel.channelId] = channel;
-                }
+        for (var channelGroup of config.channelGroups) {
+            var res = yield request("http://tvguide.naver.com/program/multiChannel.nhn", {
+                headers: {
+                    'User-Agent': ua
+                },
+                qs: { channelGroup: channelGroup, date: krDate.format("yyyymmdd")}
             });
-        }
-    });
     
-    date.setDate(date.getDate() + 1);
-}
-
-var doc = new XMLWriter;
-doc.startDocument('1.0', 'UTF-8');
-doc.startElement('tv').writeAttribute('source-info-name', 'EPGI')
-                      .writeAttribute('generator-info-name', 'tv_grab_kr')
-                      .writeAttribute('generator-info-url', 'mailto:tvgrab.kr@gmail.com');
-
-// add channels first
-for (var id in channels) {
-    var channel = channels[id];
-    var channelId = 'c' + ('00' + channel.channelId).slice(-3) + '.' + channel.broadcastType + '.tvguide.naver.com'
-
-    var ch = new XMLWriter;
-    ch.startElement('channel').writeAttribute('id', channelId)
-                              .writeElement('display-name', channel.channelId + ' ' + channel.channelName)
-                              .writeElement('display-name', channel.channelId)
-                              .writeElement('display-name', channel.channelName)
-                              .startElement('icon').writeAttribute('src', channel.imageMulti).endElement();
-    doc.writeRaw(ch);
-}
-
-// add programs later
-for (var id in channels) {
-    var channel = channels[id];
-    var channelId = 'c' + ('00' + channel.channelId).slice(-3) + '.' + channel.broadcastType + '.tvguide.naver.com'
-
-    channel.programList.forEach(function (program) {
-        var prog = new XMLWriter;
-        var start = new Date(program.beginDate + 'T' + program.beginTime + '+09:00');
-        var end = new Date(program.beginDate + 'T' + program.endTime + '+09:00');
-        if (end < start) {
-            end.setDate(end.getDate() + 1);
+            var m = res.body.match(/var PROGRAM_SCHEDULES=({[^]*?});/)
+            if (m && m.length > 0) {
+                var schedule = JSON.parse(m[1]);
+                schedule.channelList.forEach(function (channel) {
+                    if (channel.channelId in config.excludedChannels || channel.channelName in config.excludedChannels) {
+                        //console.log('skipping channel ' + channel.channelId)
+                        return
+                    }
+                
+                    channel.programList = channel.programList.filter(function (program) {
+                        var start = new Date(program.beginDate + 'T' + program.beginTime + '+09:00');
+                        return start >= date && start.getTime() < date.getTime() + 24 * 60 * 60 * 1000;
+                    });
+                
+                    var ch = channels[channel.channelId];
+                    if (ch) {
+                        // append programs to the existing channel
+                        ch.programList = ch.programList.concat(channel.programList);
+                    }
+                    else {
+                        // create new channel
+                        channels[channel.channelId] = channel;
+                    }
+                });
+            }
         }
+    
+        date.setDate(date.getDate() + 1);
+    }
 
-        prog.startElement('programme').writeAttribute('start', start.format("yyyymmddHHMMss o"))
-                                      .writeAttribute('stop', end.format("yyyymmddHHMMss o"))
-                                      .writeAttribute('channel', channelId)
-                                      .startElement('title').writeAttribute('lang', 'kr').text(program.scheduleName).endElement()
-                                      .startElement('sub-title').writeAttribute('lang', 'kr').text(program.subtitle).endElement()
-                                      .writeElement('language', 'kr');
-        if (genres[program.largeGenreId])
-            prog.startElement('category').writeAttribute('lang', 'kr').text(genres[program.largeGenreId]).endElement();
-        else {
-            console.error('unknown genre ' + program.largeGenreId + ' for scheduleId ' + program.scheduleId);
-        }
+    var doc = new XMLWriter;
+    doc.startDocument('1.0', 'UTF-8');
+    doc.startElement('tv').writeAttribute('source-info-name', 'EPGI')
+                          .writeAttribute('generator-info-name', 'tv_grab_kr')
+                          .writeAttribute('generator-info-url', 'mailto:tvgrab.kr@gmail.com');
 
-        if (program.episodeNo)
-            prog.startElement('episode-num').writeAttribute('system', 'onscreen').text(program.episodeNo).endElement();
+    // add channels first
+    for (var id in channels) {
+        var channel = channels[id];
+        var channelId = 'c' + ('00' + channel.channelId).slice(-3) + '.' + channel.broadcastType + '.tvguide.naver.com'
+
+        var ch = new XMLWriter;
+        ch.startElement('channel').writeAttribute('id', channelId)
+                                  .writeElement('display-name', channel.channelId + ' ' + channel.channelName)
+                                  .writeElement('display-name', channel.channelId)
+                                  .writeElement('display-name', channel.channelName)
+                                  .startElement('icon').writeAttribute('src', channel.imageMulti).endElement();
+        doc.writeRaw(ch);
+    }
+
+    // add programs later
+    for (var id in channels) {
+        var channel = channels[id];
+        var channelId = 'c' + ('00' + channel.channelId).slice(-3) + '.' + channel.broadcastType + '.tvguide.naver.com'
+
+        channel.programList.forEach(function (program) {
+            var prog = new XMLWriter;
+            var start = new Date(program.beginDate + 'T' + program.beginTime + '+09:00');
+            var end = new Date(program.beginDate + 'T' + program.endTime + '+09:00');
+            if (end < start) {
+                end.setDate(end.getDate() + 1);
+            }
+
+            prog.startElement('programme').writeAttribute('start', start.format("yyyymmddHHMMss o"))
+                                          .writeAttribute('stop', end.format("yyyymmddHHMMss o"))
+                                          .writeAttribute('channel', channelId)
+                                          .startElement('title').writeAttribute('lang', 'kr').text(program.scheduleName).endElement()
+                                          .startElement('sub-title').writeAttribute('lang', 'kr').text(program.subtitle).endElement()
+                                          .writeElement('language', 'kr');
+            if (genres[program.largeGenreId])
+                prog.startElement('category').writeAttribute('lang', 'kr').text(genres[program.largeGenreId]).endElement();
+            else {
+                console.error('unknown genre ' + program.largeGenreId + ' for scheduleId ' + program.scheduleId);
+            }
+
+            if (program.episodeNo)
+                prog.startElement('episode-num').writeAttribute('system', 'onscreen').text(program.episodeNo).endElement();
         
-        if (program.rebroadcast)
-            prog.startElement('previously-shown').endElement();
+            if (program.rebroadcast)
+                prog.startElement('previously-shown').endElement();
 
-        prog.startElement('rating').writeAttribute('system', 'VCHIP')
-                                   .writeElement('value', (program.ageRating == 0) ? '모든 연령 시청가' : program.ageRating + '세 이상 시청가');
-        prog.endElement();
+            prog.startElement('rating').writeAttribute('system', 'VCHIP')
+                                       .writeElement('value', (program.ageRating == 0) ? '모든 연령 시청가' : program.ageRating + '세 이상 시청가');
+            prog.endElement();
 
-        doc.writeRaw(prog);
-    })
-}
+            doc.writeRaw(prog);
+        })
+    }
 
-doc.endElement();
-doc.endDocument();
+    doc.endElement();
+    doc.endDocument();
 
-if (config.output) {
-    fs.writeFile(config.output, pd.xml(doc.toString()), function (err) {
-        if (err)
-            throw err;
-    })
-}
-else if (config.sock) {
-    var client = net.connect( {path: config.sock}, function () {
-        client.write(doc.toString());
-        client.end();
-        client.unref();
-    })
-}
-else {
-    console.log(pd.xml(doc.toString()));
-}
+    if (config.output) {
+        fs.writeFile(config.output, pd.xml(doc.toString()), function (err) {
+            if (err)
+                throw err;
+        })
+    }
+    else if (config.sock) {
+        var client = net.connect( {path: config.sock}, function () {
+            client.write(doc.toString());
+            client.end();
+            client.unref();
+        })
+    }
+    else {
+        console.log(pd.xml(doc.toString()));
+    }
 
-return 0;
+    return 0;
+}).catch(function (err) {
+    console.error(err.stack);
+});
