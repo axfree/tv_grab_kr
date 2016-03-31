@@ -36,6 +36,7 @@ var config = {
 var argv = minimist(process.argv.slice(2), {
     alias: {
         'list-channel-group': 'l',
+        'list-channels': 'c',
         'channel-group': 'g',
         'exclude-channel': 'e',
         'help': 'h',
@@ -60,6 +61,7 @@ co(function* () {
             '  -g, --channel-group=GR1,GR2,...   select channel group\n' +
             '  -h, --help                        show usage information\n' +
             '  -l, --list-channel-group          list all available channel group\n' +
+            '  -c, --list-channels               list all available channels\n' +
             '  -n, --days=X                      supply data for X days\n' +
             '  -o, --offset=X                    start with data for day today plus X days\n' +
             '  -w, --output=FILENAME             redirect xmltv output to the specified file\n' +
@@ -109,20 +111,75 @@ co(function* () {
 
     if (argv.l) {
         // list all available channel groups
+        console.log([ 'ch', 'btype', 'cgroup' ].join(','));
         for (var broadcastType in broadcastTypes) {
             var res = yield request.post('http://tvguide.naver.com/api/channelGroup/list.nhn', {
                 headers: {
                     'User-Agent': ua
                 },
-                form: { broadcastType: broadcastType }
+                form: { broadcastType: broadcastType },
+                json: true
             })
 
-            var channelGroupList = JSON.parse(res.body);
-
+            var channelGroupList = res.body;
             channelGroupList.result.forEach(function (channelGroup) {
-                console.log((' ' + channelGroup.channelGroupNo).slice(-2) + ': ' + broadcastTypes[broadcastType] + '-' + channelGroup.channelGroupName);
+                console.log([
+                    channelGroup.channelGroupNo,
+                    broadcastTypes[broadcastType],
+                    channelGroup.channelGroupName
+                ].join(','));
             })
         }
+
+        return 0;
+    }
+
+    if (argv.c) {
+        // list all available channels
+        var channels = [];
+        for (var broadcastType in broadcastTypes) {
+            var res = yield request.post('http://tvguide.naver.com/api/channelGroup/list.nhn', {
+                headers: {
+                    'User-Agent': ua
+                },
+                form: { broadcastType: broadcastType },
+                json: true
+            })
+
+            var channelGroupList = res.body;
+            for (var channelGroup of channelGroupList.result) {
+                var res = yield request("http://tvguide.naver.com/program/multiChannel.nhn", {
+                    headers: {
+                        'User-Agent': ua
+                    },
+                    qs: { channelGroup: channelGroup.channelGroupNo, date: new Date().format("yyyymmdd") }
+                });
+
+                var m = res.body.match(/var PROGRAM_SCHEDULES=({[^]*?});/)
+                if (m && m.length > 0) {
+                    var schedule = JSON.parse(m[1]);
+                    for (var channel of schedule.channelList) {
+                        channels.push([
+                            channel.channelId,
+                            //channel.channelName,
+                            channel.channelName.replace(/(.+) (SBS|KBS1|KBS2|MBC)$/, '$2 $1'),
+                            broadcastTypes[broadcastType],
+                            channelGroup.channelGroupName
+                        ]);
+                    }
+                }
+            }
+        }
+
+        // sort channels by channel number
+        channels.sort(function (a, b) {
+            return a[0] - b[0];
+        });
+
+        console.log([ 'ch', 'name', 'btype', 'cgroup' ].join(','));
+        channels.forEach(function (ch) {
+            console.log(ch.join(','));
+        });
 
         return 0;
     }
