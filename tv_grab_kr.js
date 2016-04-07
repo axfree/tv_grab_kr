@@ -109,26 +109,47 @@ co(function* () {
         config.sock = argv.sock;
     }
 
+    if (argv.g) {
+        config.channelGroups = argv.g.toString().split(',');
+    }
+
+    if (argv.e) {
+        argv.e.toString().split(',').forEach(function (c) {
+            config.excludedChannels[c] = true
+        })
+    }
+
+    // collect channel groups
+    var channelGroups = new Map();
+    for (var broadcastType in broadcastTypes) {
+        var res = yield request.post('http://tvguide.naver.com/api/channelGroup/list.nhn', {
+            headers: {
+                'User-Agent': ua
+            },
+            form: { broadcastType: broadcastType },
+            json: true
+        })
+
+        var channelGroupList = res.body;
+        channelGroupList.result.forEach(function (cg) {
+            channelGroups.set(cg.channelGroupNo, {
+                channelGroupNo: cg.channelGroupNo,
+                channelGroupName: cg.channelGroupName,
+                broadcastType: broadcastType
+            });
+        })
+    }
+   //console.dir(channelGroups);
+
     if (argv.l) {
         // list all available channel groups
         console.log([ 'ch', 'btype', 'cgroup' ].join(','));
-        for (var broadcastType in broadcastTypes) {
-            var res = yield request.post('http://tvguide.naver.com/api/channelGroup/list.nhn', {
-                headers: {
-                    'User-Agent': ua
-                },
-                form: { broadcastType: broadcastType },
-                json: true
-            })
-
-            var channelGroupList = res.body;
-            channelGroupList.result.forEach(function (channelGroup) {
-                console.log([
-                    channelGroup.channelGroupNo,
-                    broadcastTypes[broadcastType],
-                    channelGroup.channelGroupName
-                ].join(','));
-            })
+        for (var cg of channelGroups.values()) {
+            console.log([
+                cg.channelGroupNo,
+                broadcastTypes[cg.broadcastType],
+                cg.channelGroupName
+            ].join(','));
         }
 
         return 0;
@@ -137,36 +158,25 @@ co(function* () {
     if (argv.c) {
         // list all available channels
         var channels = [];
-        for (var broadcastType in broadcastTypes) {
-            var res = yield request.post('http://tvguide.naver.com/api/channelGroup/list.nhn', {
+        for (var cg of channelGroups.values()) {
+            var res = yield request("http://tvguide.naver.com/program/multiChannel.nhn", {
                 headers: {
                     'User-Agent': ua
                 },
-                form: { broadcastType: broadcastType },
-                json: true
-            })
+                qs: { channelGroup: cg.channelGroupNo, broadcastType: cg.broadcastType, date: new Date().format("yyyymmdd") }
+            });
 
-            var channelGroupList = res.body;
-            for (var channelGroup of channelGroupList.result) {
-                var res = yield request("http://tvguide.naver.com/program/multiChannel.nhn", {
-                    headers: {
-                        'User-Agent': ua
-                    },
-                    qs: { channelGroup: channelGroup.channelGroupNo, date: new Date().format("yyyymmdd") }
-                });
-
-                var m = res.body.match(/var PROGRAM_SCHEDULES=({[^]*?});/)
-                if (m && m.length > 0) {
-                    var schedule = JSON.parse(m[1]);
-                    for (var channel of schedule.channelList) {
-                        channels.push([
-                            channel.channelId,
-                            //channel.channelName,
-                            channel.channelName.replace(/(.+) (SBS|KBS1|KBS2|MBC)$/, '$2 $1'),
-                            broadcastTypes[broadcastType],
-                            channelGroup.channelGroupName
-                        ]);
-                    }
+            var m = res.body.match(/var PROGRAM_SCHEDULES=({[^]*?});/)
+            if (m && m.length > 0) {
+                var schedule = JSON.parse(m[1]);
+                for (var channel of schedule.channelList) {
+                    channels.push([
+                        channel.channelId,
+                        //channel.channelName,
+                        channel.channelName.replace(/(.+) (SBS|KBS1|KBS2|MBC)$/, '$2 $1'),
+                        broadcastTypes[cg.broadcastType],
+                        cg.channelGroupName
+                    ]);
                 }
             }
         }
@@ -184,16 +194,6 @@ co(function* () {
         return 0;
     }
 
-    if (argv.g) {
-        config.channelGroups = argv.g.toString().split(',');
-    }
-
-    if (argv.e) {
-        argv.e.toString().split(',').forEach(function (c) {
-            config.excludedChannels[c] = true
-        })
-    }
-
     // console.log(pd.json(config));
     var date = new Date();
     date.setHours(24 * config.offset, 0, 0, 0);
@@ -208,11 +208,12 @@ co(function* () {
         var krDate = new Date(date.getTime() + tzOffset);
     
         for (var channelGroup of config.channelGroups) {
+            var cg = channelGroups.get(parseInt(channelGroup));
             var res = yield request("http://tvguide.naver.com/program/multiChannel.nhn", {
                 headers: {
                     'User-Agent': ua
                 },
-                qs: { channelGroup: channelGroup, date: krDate.format("yyyymmdd")}
+                qs: { channelGroup: cg.channelGroupNo, broadcastType:cg.broadcastType, date: krDate.format("yyyymmdd")}
             });
     
             var m = res.body.match(/var PROGRAM_SCHEDULES=({[^]*?});/)
@@ -254,7 +255,7 @@ co(function* () {
     // add channels first
     for (var id in channels) {
         var channel = channels[id];
-        var channelId = 'c' + ('00' + channel.channelId).slice(-3) + '.' + channel.broadcastType + '.tvguide.naver.com'
+        var channelId = 'c' + ('00' + channel.channelId).slice(-3) + '.tvguide.naver.com'
 
         var ch = new XMLWriter;
         ch.startElement('channel').writeAttribute('id', channelId)
@@ -268,7 +269,7 @@ co(function* () {
     // add programs later
     for (var id in channels) {
         var channel = channels[id];
-        var channelId = 'c' + ('00' + channel.channelId).slice(-3) + '.' + channel.broadcastType + '.tvguide.naver.com'
+        var channelId = 'c' + ('00' + channel.channelId).slice(-3) + '.tvguide.naver.com'
 
         channel.programList.forEach(function (program) {
             var prog = new XMLWriter;
