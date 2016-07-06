@@ -173,9 +173,13 @@ co(function* () {
                     channels.push([
                         channel.channelId,
                         //channel.channelName,
-                        channel.channelName.replace(/(.+) (SBS|KBS1|KBS2|MBC)$/, '$2 $1'),
+                        channel.channelName
+                            .replace(/(.+) (SBS|KBS1|KBS2|MBC)$/, '$2 $1')
+                            .replace(/^MBC(경남)/, 'MBC $1')
+                            .replace(/^(진주)MBC/, 'MBC $1'),
                         broadcastTypes[cg.broadcastType],
-                        cg.channelGroupName
+                        cg.channelGroupName,
+                        channel.imageMulti
                     ]);
                 }
             }
@@ -186,7 +190,7 @@ co(function* () {
             return a[0] - b[0];
         });
 
-        console.log([ 'ch', 'name', 'btype', 'cgroup' ].join(','));
+        console.log([ 'ch', 'name', 'btype', 'cgroup', 'icon' ].join(','));
         channels.forEach(function (ch) {
             console.log(ch.join(','));
         });
