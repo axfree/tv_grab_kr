@@ -11,4 +11,6 @@ else
     SCRIPT_PATH=$0
 fi
 
-node "$(dirname "$SCRIPT_PATH")/tv_grab_kr.js" $*
+node "$(dirname "$SCRIPT_PATH")/tv_grab_skylife.js" $*
+#node "$(dirname "$SCRIPT_PATH")/tv_grab_daum.js" $*
+#node "$(dirname "$SCRIPT_PATH")/tv_grab_naver.js" $*

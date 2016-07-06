@@ -1,11 +1,7 @@
 {
-  "channelGroups": [
-    25,
-    47,
-    31,
-    38
+  "channelFilters": [
+    "(지상파|종합편성|케이블|스카이라이프|해외위성|라디오):"
   ],
-  "excludedChannels": {},
   "days": 1,
   "offset": 0
 }
