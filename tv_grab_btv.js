@@ -13,20 +13,30 @@ var iconv     = require('iconv-lite');
 
 // channelGroups:
 //   지상파
-//   스포츠/취미
+//   종합편성채널
+//   애니
+//   키즈
 //   영화
-//   뉴스/경제
-//   교양/다큐
-//   여성/오락
-//   어린이/교육
+//   시리즈
+//   드라마/예능
+//   라이프
+//   취미/레저
+//   스포츠
+//   교육
 //   홈쇼핑
-//   공공/종교
+//   공공
+//   연예/오락
+//   종교
+//   교양/정보
+//   뉴스/경제
+//   보도
 
 var ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36';
 var userHome = process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'];
 
 var config = {
     channelFilters: [                   // 'broadcastType:channelGroup:channelName'
+        // /채널J$/,
         // '어린이/교육',
         // 'SBS$',
         // '사이언스TV',
@@ -72,7 +82,7 @@ var argv = minimist(process.argv.slice(2), {
 co(function* () {
     if (argv.h) {
         console.log(
-            'Usage: node tv_grab_tvg.js [OPTION]\n' +
+            'Usage: node tv_grab_btv.js [OPTION]\n' +
             'Options:\n' +
             '  -g, --channel-filter=regex  select only channels matching regular expression\n' +
             '  -h, --help                  show usage information\n' +
@@ -89,7 +99,7 @@ co(function* () {
 
     // tv_grab --description option
     if (argv.description) {
-        console.log('tv_grab_tvg grabber by axfree');
+        console.log('tv_grab_btv grabber by axfree');
         return 0;
     }
 
@@ -132,46 +142,33 @@ co(function* () {
         });
     }
 
-    var res = yield request.get('https://www.uplus.co.kr/css/chgi/chgi/RetrieveTvContentsMFamily.hpi', {
+    var res = yield request.get('http://www.skbroadband.com/content/realtime/Realtime_List.do', {
         headers: {
             'User-Agent': ua,
         },
         encoding: null,
     });
 
+    // console.log(iconv.decode(res.body, 'cp949'));
     var channels = [];
-    var channelGroupsAs = $('#CATEGORY > ul > li > a', iconv.decode(res.body, 'cp949'));
-    for (var a of channelGroupsAs.get()) {
-        var channelGroup = $(a).text();
+    var channelGroupsDIVs = $('.channal-list-inner', iconv.decode(res.body, 'cp949'));
+    for (var div of channelGroupsDIVs.get()) {
+        var channelGroup = $('h2 > a', div).text().trim();
         if (argv.c) {
-            console.log(`tvG:${channelGroup}`);
+            console.log(`btv:${channelGroup}`);
             continue;
         }
 
-        var m = $(a).attr('onclick').match(/'(\d+)','(\d+)','(\d+)'/);
-        var res = yield request.post('https://www.uplus.co.kr/css/chgi/chgi/RetrieveTvChannel.hpi', {
-            headers: {
-                'User-Agent': ua,
-            },
-            encoding: null,
-            form: {
-                code: m[2],
-                category: m[1]
-            },
-        });
-
-        var channelAs = $('li > a', iconv.decode(res.body, 'cp949'));
-        for (var a of channelAs.get()) {
-            var m = $(a).text().match(/(.*)\(Ch\.(\d+)\)/);
-            var channelName = m[1].replace(/(.+) (SBS|KBS1|KBS2|MBC)$/, '$2 $1')
-                                  .replace(/^MBC(경남)/, 'MBC $1')
-                                  .replace(/^(진주)MBC/, 'MBC $1');
-            var channelNumber = m[2];
-            var channelFullName = `tvG:${channelGroup}:${channelName}`;
-            var channelCode = $(a).attr('onclick').match(/'(\d+)','(\d+)'/) [1];
+        var lis = $('ul > li', div);
+        for (var li of lis.get()) {
+            var channelNumber = $('em', li).text().match(/[(\d+)]/) [1];
+            var a = $('a', li);
+            var m = $(a).attr('onclick').match(/'(\d+)','(\d+)','(.*)','(.*)'/);
+            var channelName = $(a).text().trim();
+            var channelFullName = `btv:${channelGroup}:${channelName}`;
 
             if (argv.l) {
-                console.log(`tvG:${channelGroup}:${channelName}`);
+                console.log(`btv:${channelGroup}:${channelName}`);
                 continue;
             }
 
@@ -184,99 +181,70 @@ co(function* () {
             }
             console.log(channelFullName);
 
+            var res = yield request.post('http://www.skbroadband.com/content/realtime/Channel_List.do', {
+                headers: {
+                    'User-Agent': ua,
+                },
+                encoding: null,
+                form: {
+                    // retUrl:
+                    pageIndex: 1,
+                    // pack:(unable to decode value)
+                    // tab_gubun:1
+                    key_depth1: m[1],       // 5100,
+                    key_depth2: m[2],       // 14,
+                    key_depth3: m[3],
+                    // key_chno:
+                    key_depth2_name: m[4],  // SBS,
+                    menu_id: 'C02010000',
+                }
+            });
+
             var programs = [];
             var date = moment.tz('Asia/Seoul').startOf('day');
-            do {
-                var res = yield request.post('https://www.uplus.co.kr/css/chgi/chgi/RetrieveTvSchedule.hpi', {
-                    headers: {
-                        'User-Agent': ua,
-                    },
-                    encoding: null,
-                    form: {
-                        chnlCd: channelCode,
-                        evntCmpYmd: date.format('YYYYMMDD')
-                    },
-                });
-                var body = iconv.decode(res.body, 'cp949');
-                var nextLink = $('a.next', body);
+            var trs = $('.uio-table-time tr', iconv.decode(res.body, 'cp949'));
+            trs.each((h, tr) => {
+                var tds = $('td', tr);
+                tds.each((d, td) => {
+                    var item = $(td).children().first();
+                    while (item.length > 0) {
+                        if (!item.text().match(/^\d{2}분$/))
+                            break;
 
-                var trs = $('tbody > tr', body);
-                trs.each((idx, tr) => {
-                    var startTime = $('td:nth-child(1)', tr).text();    // 23:10
-                    var title = $('td:nth-child(2)', tr).text().trim();
-                    var program = {
-                        tm: moment(date.format('YYYYMMDD') + startTime + '+0900', 'YYYYMMDDHH:mmZ'),
-                        category: $('td:nth-child(3)', tr).text().trim(),
-                        rating: 0
-                    }
-
-                    $('img', tr).each((idx, img) => {
-                        var alt = $(img).attr('alt');
-                        var m = alt.match(/(\d+)세이상 관람가/);
-                        if (m)
-                            rating = parseInt(m[1]);
-                    })
-
-                    // (생) [포르투갈:웨일스] UEFA 유로 2016 준결승
-                    // 국내특선다큐 [디지털 콘텐츠, 공짜와의 전쟁 2부]
-                    // 청년창업 RUNWAY [친환경 유아용품 전문 브랜드 최..
-                    // Smartest Guy In The Room (S1) (9,10회)
-                    // 방송 정보 없음
-
-                    // fix unbalanced parenthesis/brackets
-                    if (title.endsWith('..')) {
-                        var fixedTitle = '';
-                        var opens = [];
-                        var openers = '([{<';
-                        var closers = ')]}>';
-                        for (var c of title) {
-                            var idx = openers.indexOf(c);
-                            if (idx >= 0)
-                                opens.push(idx);
-                            else {
-                                idx = closers.indexOf(c);
-                                if (idx >= 0) {
-                                    if (opens.length == 0 || opens[opens.length - 1] != idx)
-                                        c = openers[idx] + c;
-                                    else
-                                        opens.pop();
+                        var program = {};
+                        program.tm = moment(`${date.format('YYYYMMDD')}.${h}.${item.text()}+0900`, 'YYYYMMDD.H.mm분Z').add(d, 'days');
+                        item = item.next();
+                        $('span', item).each((idx, span) => {
+                            if ($(span).hasClass('subject')) {
+                                var title = $(span).text().trim();
+                                // 미녀 공심이(16회)(재)
+                                // 원티드<5회,6회>(재)
+                                // TV 동물농장(재)
+                                var m = title.match(/(.*?)(?:\s*[\(<]([\d,회]+)[\)>])?(\(재\))?$/);
+                                if (m) {
+                                    program.title = m[1];
+                                    if (m[2])
+                                        program.episode = m[2];
+                                    if (m[3])
+                                        program.rebroadcast = true;
                                 }
                             }
-                            fixedTitle += c;
-                        }
-                        opens.reverse().forEach(idx => fixedTitle += closers[idx]);
+                            else {
+                                var m = $(span).text().match(/^(\d+)$/);
+                                if (m)
+                                    program.rating = parseInt(m[1]);
+                            }
+                        });
 
-                        if (title != fixedTitle) {
-                            console.log(`title changed: old=${title}, new=${fixedTitle}`);
-                            title = fixedTitle;
-                        }
+                        programs.push(program);
+                        item = item.next();
                     }
-
-                    //                    1                2              3:title        4                5
-                    var m = title.match(/^(\(생\))?(?:\s*\[(.*?)\])?(?:\s*(.*?))?(?:\s*\[(.*?)\])?(?:\s*\(([\d,]+회)\))?$/);
-                    if (m) {
-                        program.tm = moment(date.format('YYYYMMDD') + startTime + '+0900', 'YYYYMMDDHH:mmZ');
-                        if (m[3]) {
-                            program.title = m[3];
-                            program.subTitle = m[2] || m[4];
-                        }
-                        else
-                            program.title = m[2] || m[4];
-                        program.isLive = !!m[4];
-                        program.episode = m[5];
-                    }
-
-                    // if (!program.title) {
-                    //     console.error(channelFullName, title, program.title);
-                    //     process.exit(0);
-                    // }
-
-                    programs.push(program);
                 });
+            })
 
-                date.add(1, 'days');
-            }
-            while (nextLink.length > 0);
+            programs.sort((a, b) => {
+                return a.tm.diff(b.tm);
+            });
 
             channels[channelName] = {
                 icon: '',
@@ -292,7 +260,7 @@ co(function* () {
     var doc = new XMLWriter;
     doc.startDocument('1.0', 'UTF-8');
     doc.startElement('tv').writeAttribute('source-info-name', 'EPGI')
-                          .writeAttribute('generator-info-name', 'tv_grab_tvg')
+                          .writeAttribute('generator-info-name', 'tv_grab_btv')
                           .writeAttribute('generator-info-url', 'mailto:tvgrab.kr@gmail.com');
     // add channels first
     for (var channelName in channels) {
@@ -300,7 +268,7 @@ co(function* () {
         var ch = new XMLWriter;
         ch.startElement('channel').writeAttribute('id', channelName)
                                   .writeElement('display-name', channelName)
-                                  .writeElement('display-name', `tvG:${channel.group}:${channelName}`)
+                                  .writeElement('display-name', `btv:${channel.group}:${channelName}`)
                                   .startElement('icon')
                                       .writeAttribute('src', `http:${channel.icon}`)
                                   .endElement();
@@ -350,14 +318,15 @@ co(function* () {
             if (program.episode)
                 prog.startElement('episode-num').writeAttribute('system', 'onscreen').text(program.episode).endElement();
 
-            // if (program.rebroad == 'Y')
-            //     prog.startElement('previously-shown').endElement();
+            if (program.rebroadcast)
+                prog.startElement('previously-shown').endElement();
 
             // if (program.summary)
             //     prog.startElement('desc').writeAttribute('lang', 'kr').text(program.summary).endElement();
 
-            prog.startElement('rating').writeAttribute('system', 'VCHIP')
-                                       .writeElement('value', (program.rating == 0) ? '모든 연령 시청가' : program.rating + '세 이상 시청가');
+            if (program.rating)
+                prog.startElement('rating').writeAttribute('system', 'VCHIP')
+                                           .writeElement('value', program.rating + '세 이상 시청가');
             prog.endElement();
 
             doc.writeRaw(prog);

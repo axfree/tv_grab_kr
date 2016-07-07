@@ -226,7 +226,7 @@ co(function* () {
     var doc = new XMLWriter;
     doc.startDocument('1.0', 'UTF-8');
     doc.startElement('tv').writeAttribute('source-info-name', 'EPGI')
-                          .writeAttribute('generator-info-name', 'tv_grab_naver')
+                          .writeAttribute('generator-info-name', 'tv_grab_skylife')
                           .writeAttribute('generator-info-url', 'mailto:tvgrab.kr@gmail.com');
     // add channels first
     for (var channelName in channels) {
