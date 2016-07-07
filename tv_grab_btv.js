@@ -220,12 +220,16 @@ co(function* () {
                                 // 미녀 공심이(16회)(재)
                                 // 원티드<5회,6회>(재)
                                 // TV 동물농장(재)
-                                var m = title.match(/(.*?)(?:\s*[\(<]([\d,회]+)[\)>])?(\(재\))?$/);
+                                // 프리한 19(6회)<여행지19>(재)     # tvN
+                                //                   1               2:episode               3:subtitle
+                                var m = title.match(/(.*?)(?:\s*[\(<]([\d,회]+)[\)>])?(?:\s*<(.*?)>)?(\(재\))?$/);
                                 if (m) {
                                     program.title = m[1];
                                     if (m[2])
                                         program.episode = m[2];
                                     if (m[3])
+                                        program.subTitle = m[3];
+                                    if (m[4])
                                         program.rebroadcast = true;
                                 }
                             }
@@ -268,10 +272,7 @@ co(function* () {
         var ch = new XMLWriter;
         ch.startElement('channel').writeAttribute('id', channelName)
                                   .writeElement('display-name', channelName)
-                                  .writeElement('display-name', `btv:${channel.group}:${channelName}`)
-                                  .startElement('icon')
-                                      .writeAttribute('src', `http:${channel.icon}`)
-                                  .endElement();
+                                  .writeElement('display-name', `btv:${channel.group}:${channelName}`);
         doc.writeRaw(ch);
     }
 
@@ -283,11 +284,6 @@ co(function* () {
         var programs = channels[channelName].programs;
 
         programs.forEach(function (program, idx) {
-            if (program.title == '방송 정보 없음') {
-                console.log(`** 방송 정보 없음`);
-                return;
-            }
-
             var start = program.tm;
             var end;
             var nextProgram = programs[idx + 1];

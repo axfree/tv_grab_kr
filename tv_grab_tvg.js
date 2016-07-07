@@ -163,7 +163,8 @@ co(function* () {
         var channelAs = $('li > a', iconv.decode(res.body, 'cp949'));
         for (var a of channelAs.get()) {
             var m = $(a).text().match(/(.*)\(Ch\.(\d+)\)/);
-            var channelName = m[1].replace(/(.+) (SBS|KBS1|KBS2|MBC)$/, '$2 $1')
+            var channelName = m[1].replace(/-Full HD$/, '')
+                                  .replace(/(.+) (SBS|KBS1|KBS2|MBC)$/, '$2 $1')
                                   .replace(/^MBC(경남)/, 'MBC $1')
                                   .replace(/^(진주)MBC/, 'MBC $1');
             var channelNumber = m[2];
@@ -247,7 +248,7 @@ co(function* () {
                         opens.reverse().forEach(idx => fixedTitle += closers[idx]);
 
                         if (title != fixedTitle) {
-                            console.log(`title changed: old=${title}, new=${fixedTitle}`);
+                            // console.log(`title changed: old=${title}, new=${fixedTitle}`);
                             title = fixedTitle;
                         }
                     }
@@ -300,10 +301,7 @@ co(function* () {
         var ch = new XMLWriter;
         ch.startElement('channel').writeAttribute('id', channelName)
                                   .writeElement('display-name', channelName)
-                                  .writeElement('display-name', `tvG:${channel.group}:${channelName}`)
-                                  .startElement('icon')
-                                      .writeAttribute('src', `http:${channel.icon}`)
-                                  .endElement();
+                                  .writeElement('display-name', `tvG:${channel.group}:${channelName}`);
         doc.writeRaw(ch);
     }
 
