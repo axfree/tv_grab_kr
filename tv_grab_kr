@@ -14,3 +14,4 @@ fi
 node "$(dirname "$SCRIPT_PATH")/tv_grab_skylife.js" $*
 #node "$(dirname "$SCRIPT_PATH")/tv_grab_daum.js" $*
 #node "$(dirname "$SCRIPT_PATH")/tv_grab_naver.js" $*
+#node "$(dirname "$SCRIPT_PATH")/tv_grab_tvg.js" $*
