@@ -12,35 +12,14 @@ var moment    = require('moment-timezone');
 var iconv     = require('iconv-lite');
 
 // channelGroups:
-//   지상파
-//   종합편성채널
-//   애니
-//   키즈
-//   영화
-//   시리즈
-//   드라마/예능
-//   라이프
-//   취미/레저
-//   스포츠
-//   교육
-//   홈쇼핑
-//   공공
-//   연예/오락
-//   종교
-//   교양/정보
-//   뉴스/경제
-//   보도
+//   레저
 
 var ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36';
 var userHome = process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'];
 
 var config = {
     channelFilters: [                   // 'broadcastType:channelGroup:channelName'
-        // /채널J$/,
-        // '어린이/교육',
-        // 'SBS$',
-        // '사이언스TV',
-        // /JTBC$/i,
+        // /폴라리스TV/,
     ],
     days: 2,        // supply data for X days
     offset: 0       // start with data for day today plus X days
@@ -156,6 +135,25 @@ co(function* () {
         return 0;
     }
 
+    var res = yield request.get('http://www.polaristv.co.kr/bbs/board.php?bo_table=qtone&wr_id=21', {
+        headers: {
+            'User-Agent': ua,
+        },
+        json: true,
+    });
+
+    var date = moment.tz('Asia/Seoul').startOf('isoWeek');  // this monday
+    var dateMatches = res.body.match(/\d+월 \d주차 \((\d+)\.(\d+)~/);
+    if (dateMatches) {
+        var m = +dateMatches[1];
+        var d = +dateMatches[2];
+        if (date.month() + 1 != m || date.date() != d) {
+            console.error('epg is not yet updated for this week');
+            date.add(-7, 'days');
+            // return 0;
+        }
+    }
+
     var res = yield request.get('http://www.polaristv.co.kr/bbs/getSchedule.php?bo_table=qtone&wr_id=21', {
         headers: {
             'User-Agent': ua,
@@ -164,7 +162,6 @@ co(function* () {
     });
 
     var programs = [];
-    var date = moment.tz('Asia/Seoul').startOf('isoWeek');  // this monday
     var data = res.body;
     for (var k in data) {
         var schedules = data[k];
@@ -215,9 +212,6 @@ co(function* () {
         group: channelGroup,
         programs: programs
     };
-
-    if (argv.l || argv.c)
-        return 0;
 
     var doc = new XMLWriter;
     doc.startDocument('1.0', 'UTF-8');
