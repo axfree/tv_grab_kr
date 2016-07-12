@@ -1,25 +1,29 @@
 #!/usr/bin/env node
 
 var co        = require("co");
-var request   = require("co-request");
 var XMLWriter = require('xml-writer');
 var pd        = require('pretty-data').pd;
 var minimist  = require('minimist');
 var fs        = require('fs');
 var net       = require('net');
-var $         = require('cheerio');
 var moment    = require('moment-timezone');
-var iconv     = require('iconv-lite');
 
-// channelGroups:
-//   레저
-
-var ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36';
 var userHome = process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'];
 
 var config = {
-    channelFilters: [                   // 'broadcastType:channelGroup:channelName'
-        // /폴라리스TV/,
+    channelFilters: [                   // 'grabber:broadcastType:channelGroup:channelName'
+        // /^daum:/,
+        /^skylife:(?!PPV|성인유료|공공|오디오|홈쇼핑)/,
+        /^polaristv:/,
+        /^naver:.*:키즈원/,
+        // '폴라리스',
+        // /지상파|종합편성|케이블|해외위성/,
+        // /케이블:영화/,
+        // /종합편성::(?!TV조선)/,
+        // /케이블:교양\/정보:산업방송 채널i/,
+        // /케이블:연예\/오락:tvN/,
+        // /산업방송 채널i/,
+        // /(SBS|KBS[1-2]|MBC)$/,
     ],
     days: 2,        // supply data for X days
     offset: 0       // start with data for day today plus X days
@@ -61,7 +65,7 @@ var argv = minimist(process.argv.slice(2), {
 co(function* () {
     if (argv.h) {
         console.log(
-            'Usage: node tv_grab_polaristv.js [OPTION]\n' +
+            'Usage: node tv_grab_daum.js [OPTION]\n' +
             'Options:\n' +
             '  -g, --channel-filter=regex  select only channels matching regular expression\n' +
             '  -h, --help                  show usage information\n' +
@@ -78,7 +82,7 @@ co(function* () {
 
     // tv_grab --description option
     if (argv.description) {
-        console.log('tv_grab_polaristv grabber by axfree');
+        console.log('tv_grab_kr grabber by axfree');
         return 0;
     }
 
@@ -121,113 +125,44 @@ co(function* () {
         });
     }
 
-    var channels = [];
-    var channelName = '폴라리스TV';
-    var channelGroup = '레저';
-
-    if (argv.c) {
-        console.log(`케이블:${channelGroup}`);
-        return 0;
-    }
-
-    if (argv.l) {
-        console.log(`케이블:${channelGroup}:${channelName}`);
-        return 0;
-    }
-
-    var res = yield request.get('http://www.polaristv.co.kr/bbs/board.php?bo_table=qtone&wr_id=21', {
-        headers: {
-            'User-Agent': ua,
-        },
-        json: true,
+    var grabbers = [];
+    const grabberFolder = __dirname + '/grabbers/';
+    fs.readdirSync(grabberFolder).forEach(file => {
+        if (!file.endsWith('.js')) return;
+        grabbers.push(require(grabberFolder + file));
     });
 
-    var date = moment.tz('Asia/Seoul').startOf('isoWeek');  // this monday
-    var dateMatches = res.body.match(/\d+월 \d주차 \((\d+)\.(\d+)~/);
-    if (dateMatches) {
-        var m = +dateMatches[1];
-        var d = +dateMatches[2];
-        if (date.month() + 1 != m || date.date() != d) {
-            console.error('epg is not yet updated for this week');
-            date.add(-7, 'days');
-            // return 0;
-        }
-    }
+    var channels = {};
+    for (var grabber of grabbers) {
+        var grabbedChannels = yield grabber.grab(config, argv);
 
-    var res = yield request.get('http://www.polaristv.co.kr/bbs/getSchedule.php?bo_table=qtone&wr_id=21', {
-        headers: {
-            'User-Agent': ua,
-        },
-        json: true,
-    });
-
-    var programs = [];
-    var data = res.body;
-    for (var k in data) {
-        var schedules = data[k];
-        for (var t in schedules) {
-            var schedule = schedules[t];
-            var h = parseInt(t.split(':')[0]);
-            var m = parseInt(t.split(':')[1]);
-            var program = {};
-            program.tm = moment(date).hours(h).minutes(m);
-            if (h >= 0 && h < 6)
-                program.tm.add(1, 'days');
-            var matches = schedule.name.replace(/<br \/>/g, ' ')
-                                       .replace(/  /g, ' ')
-                                       .match(/(.*?)(?:\s*\((.*?)\))?$/);
-            if (matches) {
-                // console.dir(matches);
-                program.title = matches[1];
-                if (matches[2]) {
-                    // extract episode number from the subtitle
-                    var episodeMatches = matches[2].match(/^(.*?)(\d+)회?$/);
-                    if (episodeMatches) {
-                        if (episodeMatches[1])
-                            program.subTitle = episodeMatches[1];
-                        program.episode = episodeMatches[2] + '회';
-                    }
-                    else
-                        program.subTitle = matches[2];
-                }
-
-                if (!program.episode) {
-                    // extract episode number from the title
-                    var episodeMatches = program.title.match(/(.*?) (\d+)$/);
-                    if (episodeMatches) {
-                        program.title = episodeMatches[1];
-                        program.episode = episodeMatches[2] + '회';
-                    }
-                }
+        for (var channelName in grabbedChannels) {
+            if (channels[channelName]) {
+                // merge channel epgs
             }
-
-            programs.push(program);
+            else {
+                channels[channelName] = grabbedChannels[channelName];
+            }
         }
-
-        date.add(1, 'days');
     }
 
-    channels[channelName] = {
-        icon: 'http://www.polaristv.co.kr/images/logo2.png',
-        group: channelGroup,
-        programs: programs
-    };
+    if (argv.c || argv.l)
+        return 0;
 
     var doc = new XMLWriter;
     doc.startDocument('1.0', 'UTF-8');
     doc.startElement('tv').writeAttribute('source-info-name', 'EPGI')
-                          .writeAttribute('generator-info-name', 'tv_grab_polaristv')
+                          .writeAttribute('generator-info-name', 'tv_grab_kr')
                           .writeAttribute('generator-info-url', 'mailto:tvgrab.kr@gmail.com');
     // add channels first
     for (var channelName in channels) {
         var channel = channels[channelName];
+
         var ch = new XMLWriter;
         ch.startElement('channel').writeAttribute('id', channelName)
-                                  .writeElement('display-name', channelName)
-                                  .writeElement('display-name', `케이블:${channel.group}:${channelName}`)
-                                  .startElement('icon')
-                                      .writeAttribute('src', `${channel.icon}`)
-                                  .endElement();
+                                  .writeElement('display-name', channelName);
+        if (channel.icon)
+            ch.startElement('icon').writeAttribute('src', channel.icon).endElement();
         doc.writeRaw(ch);
     }
 
@@ -239,33 +174,47 @@ co(function* () {
         var programs = channels[channelName].programs;
 
         programs.forEach(function (program, idx) {
-            var start = program.tm;
-            var end;
-            var nextProgram = programs[idx + 1];
-            if (nextProgram)
-                end = nextProgram.tm;
-            else {
-                console.error(`** no next program: ${channelName}`);
-                end = moment(start).add(1, 'hours');
+            if (program.start.diff(startDate) < 0 || program.start.diff(endDate) >= 0) {
+                // console.log('skip', program.start.format());
+                return;
             }
 
-            if (start.diff(startDate) < 0 || start.diff(endDate) >= 0) {
-                // console.log('skip', program.tm.format());
-                return;
+            var start = program.start;
+            var end = program.end;
+            if (!end) {
+                var nextProgram = programs[idx + 1];
+                if (nextProgram)
+                    end = nextProgram.start;
+                else {
+                    console.error(`** no next program: ${channelName}`);
+                    end = moment(start).add(1, 'hours');
+                }
             }
 
             var prog = new XMLWriter;
             prog.startElement('programme').writeAttribute('start', start.format("YYYYMMDDHHmmss Z").replace(':', ''))
                                           .writeAttribute('stop', end.format("YYYYMMDDHHmmss Z").replace(':', ''))
                                           .writeAttribute('channel', channelName)
-                                          .writeElement('language', 'kr')
-                                          .startElement('title').writeAttribute('lang', 'kr').text(program.title).endElement();
-            if (program.subTitle)
-                prog.startElement('sub-title').writeAttribute('lang', 'kr').text(program.subTitle).endElement();
+                                          .startElement('title').writeAttribute('lang', 'kr').text(program.title).endElement()
+                                          .writeElement('language', 'kr');
+            if (program.subtitle)
+                prog.startElement('sub-title').writeAttribute('lang', 'kr').text(program.subtitle).endElement();
+
+            if (program.category)
+                prog.startElement('category').writeAttribute('lang', 'kr').text(program.category).endElement();
 
             if (program.episode)
                 prog.startElement('episode-num').writeAttribute('system', 'onscreen').text(program.episode).endElement();
 
+            if (program.rebroadcast)
+                prog.startElement('previously-shown').endElement();
+
+            if (program.desc)
+                prog.startElement('desc').writeAttribute('lang', 'kr').text(program.desc).endElement();
+
+            if (program.rating || program.rating === 0)
+                prog.startElement('rating').writeAttribute('system', 'VCHIP')
+                                           .writeElement('value', (program.rating == 0) ? '모든 연령 시청가' : program.rating + '세 이상 시청가');
             prog.endElement();
 
             doc.writeRaw(prog);
@@ -293,7 +242,6 @@ co(function* () {
     }
 
     return 0;
-
 }).catch(function (err) {
     console.error(err.stack);
 });
