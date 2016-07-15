@@ -13,7 +13,7 @@ var iconv     = require('iconv-lite');
 var ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36';
 
 function *grab(config, argv) {
-    var channels = [];
+    var channels = {};
     var channelGroup = '레저';
     var channelName = '폴라리스TV';
     var channelFullName = `polaristv:${channelGroup}:${channelName}`;

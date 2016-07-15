@@ -28,7 +28,7 @@ function *grab(config, argv) {
         encoding: null,
     });
 
-    var channels = [];
+    var channels = {};
     var channelGroupsAs = $('#CATEGORY > ul > li > a', iconv.decode(res.body, 'cp949'));
     for (var a of channelGroupsAs.get()) {
         var channelGroup = $(a).text();

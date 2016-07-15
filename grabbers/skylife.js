@@ -102,7 +102,7 @@ function *grab(config, argv) {
                     title: schedule.program_name,
                     subtitle: schedule.program_subname,
                     category: schedule.program_category1,
-                    episode: schedule.episode_id + '회',
+                    episode: schedule.episode_id ? schedule.episode_id + '회' : null,
                     rebroadcast: schedule.rebroad,
                     desc: schedule.summary,
                     rating: schedule.grade
