@@ -3,6 +3,14 @@
   "version": "1.0.0",
   "description": "",
   "main": "tv_grab_kr.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/axfree/tv_grab_kr"
+  },
+  "bugs": {
+    "url": "https://github.com/axfree/tv_grab_kr/issues",
+    "email": "axfree@live.com"
+  },
   "scripts": {
     "start": "node tv_grab_kr.js",
     "test": "echo \"Error: no test specified\" && exit 1"
