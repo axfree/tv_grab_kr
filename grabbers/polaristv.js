@@ -18,7 +18,7 @@ function *grab(config, argv) {
     var channelName = '폴라리스TV';
     var channelFullName = `polaristv:${channelGroup}:${channelName}`;
 
-    if (argv.c) {
+    if (argv.listChannelGroup) {
         console.log(`polaristv:${channelGroup}`);
         return null;
     }

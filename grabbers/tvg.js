@@ -32,7 +32,7 @@ function *grab(config, argv) {
     var channelGroupsAs = $('#CATEGORY > ul > li > a', iconv.decode(res.body, 'cp949'));
     for (var a of channelGroupsAs.get()) {
         var channelGroup = $(a).text();
-        if (argv.c) {
+        if (argv.listChannelGroup) {
             console.log(`tvG:${channelGroup}`);
             continue;
         }
@@ -60,7 +60,7 @@ function *grab(config, argv) {
             var channelFullName = `tvG:${channelGroup}:${channelName}`;
             var channelCode = $(a).attr('onclick').match(/'(\d+)','(\d+)'/) [1];
 
-            if (argv.l) {
+            if (argv.listChannels) {
                 console.log(`tvG:${channelGroup}:${channelName}`);
                 continue;
             }

@@ -7,15 +7,18 @@
     "start": "node tv_grab_kr.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "bin": {
+    "tv_grab_kr": "tv_grab_kr.js"
+  },
   "author": "axfree@live.com",
   "license": "ISC",
   "dependencies": {
     "cheerio": "^0.20.0",
     "co": "^4.6.0",
     "co-request": "^1.0.0",
+    "commander": "^2.9.0",
     "fs": "0.0.2",
     "iconv-lite": "^0.4.13",
-    "minimist": "^1.2.0",
     "moment-timezone": "^0.5.4",
     "net": "^1.0.2",
     "pretty-data": "^0.40.0",

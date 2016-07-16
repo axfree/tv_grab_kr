@@ -25,7 +25,7 @@ function *grab(config, argv) {
         var channelLIs = $('.lst_channel > li', res.body);
         for (var li of channelLIs.get()) {
             var channelGroup = $('h6 > a', li).text();
-            if (argv.c) {
+            if (argv.listChannelGroup) {
                 console.log(`naver:${broadcastType}:${channelGroup}`);
                 continue;
             }
@@ -37,7 +37,7 @@ function *grab(config, argv) {
                                                     .replace(/^MBC(경남)/, 'MBC $1')
                                                     .replace(/^(진주)MBC/, 'MBC $1');
                 var channelFullName = `naver:${broadcastType}:${channelGroup}:${channelName}`;
-                if (argv.l) {
+                if (argv.listChannels) {
                     console.log(channelFullName);
                     continue;
                 }

@@ -29,7 +29,7 @@ function *grab(config, argv) {
         for (var ul of channelULs.get()) {
             var channelGroup = $(ul).parent().find('strong').text().trim();
             var channelAs = $('a', ul);
-            if (argv.c) {
+            if (argv.listChannelGroup) {
                 console.log(`daum:${broadcastType}:${channelGroup}`);
                 continue;
             }
@@ -40,7 +40,7 @@ function *grab(config, argv) {
                                                     .replace(/^MBC(경남)/, 'MBC $1')
                                                     .replace(/^(진주)MBC/, 'MBC $1');
                 var channelFullName = `daum:${broadcastType}:${channelGroup}:${channelName}`;
-                if (argv.l) {
+                if (argv.listChannels) {
                     console.log(channelFullName);
                     continue;
                 }

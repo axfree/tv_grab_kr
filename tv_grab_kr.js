@@ -3,7 +3,7 @@
 var co        = require("co");
 var XMLWriter = require('xml-writer');
 var pd        = require('pretty-data').pd;
-var minimist  = require('minimist');
+var argv      = require('commander');
 var fs        = require('fs');
 var net       = require('net');
 var moment    = require('moment-timezone');
@@ -46,80 +46,30 @@ var config = {
     }
 });
 
-var argv = minimist(process.argv.slice(2), {
-    alias: {
-        'list-channel-group': 'l',
-        'list-channels': 'c',
-        'channel-filters': 'g',
-        'help': 'h',
-        // baseline options
-        'days': 'n',
-        'offset': 'o',
-        'output': 'w',
-        'sock': 's',
-        'description': 'd',
-        'version': 'v'
-    }
-});
+argv
+    .version('0.2', '-v, --version')
+    .description('tv_grab_kr grabber by axfree')
+    .option('-l, --list-channels', 'list all available channels')
+    .option('-c, --list-channel-group', 'list all available channel group')
+    .option('-g, --channel-filter [regex]', 'select only channels matching regular expression')
+    // baseline options
+    .option('-n, --days [X]', 'supply data for X days', (days) => config.days = days)
+    .option('-o, --offset [X]', 'start with data for day today plus X days', (offset) => config.offset = offset)
+    .option('-w, --output [FILENAME]', 'redirect xmltv output to the specified file', (output) => config.output = output)
+    .option('-s, --sock [SOCKET]', 'redirect xmltv output to the specified XMLTV socket', (sock) => config.sock = sock)
+    .option('    --description', 'print a description that identifies the grabber', () => {
+        console.log('tv_grab_kr grabber by axfree');
+        process.exit(0);
+    })
+    .option('    --capabilities', 'list the capabilities that a grabber supports', () => {
+        console.log('baseline');
+        process.exit(0);
+    })
+    .parse(process.argv);
 
 co(function* () {
-    if (argv.h) {
-        console.log(
-            'Usage: node tv_grab_daum.js [OPTION]\n' +
-            'Options:\n' +
-            '  -g, --channel-filter=regex  select only channels matching regular expression\n' +
-            '  -h, --help                  show usage information\n' +
-            '  -l, --list-channel-group    list all available channel group\n' +
-            '  -c, --list-channels         list all available channels\n' +
-            '  -n, --days=X                supply data for X days\n' +
-            '  -o, --offset=X              start with data for day today plus X days\n' +
-            '  -w, --output=FILENAME       redirect xmltv output to the specified file\n' +
-            '  -s, --sock=SOCKET           redirect xmltv output to the specified XMLTV socket\n'
-        );
-
-        return 0;
-    }
-
-    // tv_grab --description option
-    if (argv.description) {
-        console.log('tv_grab_kr grabber by axfree');
-        return 0;
-    }
-
-    // tv_grab --capabilities option
-    if (argv.capabilities) {
-        console.log('baseline');
-        return 0;
-    }
-
-    // tv_grab --days option
-    if (argv.days) {
-        config.days = argv.days;
-    }
-
-    // tv_grab --offset option
-    if (argv.offset) {
-        config.offset = argv.offset;
-    }
-
-    // tv_grab --output option
-    if (argv.output) {
-        config.output = argv.output;
-    }
-
-    // tv_grab v option
-    if (argv.version) {
-        console.log('0.1');
-        return 0;
-    }
-
-    // tv_grab --output option
-    if (argv.sock) {
-        config.sock = argv.sock;
-    }
-
-    if (argv.g) {
-        config.channelFilters = Array.isArray(argv.g) ? argv.g : [ argv.g ];
+    if (argv.channelFilter) {
+        config.channelFilters = Array.isArray(argv.channelFilter) ? argv.channelFilter : [ argv.channelFilter ];
         config.channelFilters.forEach((re, idx) => {
             config.channelFilters[idx] = new RegExp(re);
         });
@@ -146,7 +96,7 @@ co(function* () {
         }
     }
 
-    if (argv.c || argv.l)
+    if (argv.listChannelGroup || argv.listChannels)
         return 0;
 
     var doc = new XMLWriter;

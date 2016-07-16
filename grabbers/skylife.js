@@ -8,7 +8,7 @@ var moment    = require('moment-timezone');
 var ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36';
 
 function *grab(config, argv) {
-    if (argv.l || argv.c) {
+    if (argv.listChannels || argv.listChannelGroup) {
         var res = yield request.post('http://www.skylife.co.kr/channel/channel_number/channelListAjax.do', {
             headers: {
                 'User-Agent': ua,
@@ -35,11 +35,11 @@ function *grab(config, argv) {
         var lastGroup = '.';
         channels.forEach(c => {
             if (c.group != lastGroup) {
-                if (argv.c)
+                if (argv.listChannelGroup)
                     console.log(`skylife:${c.group}`);
                 lastGroup = c.group;
             }
-            if (argv.l)
+            if (argv.listChannels)
                 console.log(`skylife:${c.group}:${c.name}`);
         });
 

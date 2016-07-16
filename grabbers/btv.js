@@ -42,7 +42,7 @@ function *grab(config, argv) {
     var channelGroupsDIVs = $('.channal-list-inner', iconv.decode(res.body, 'cp949'));
     for (var div of channelGroupsDIVs.get()) {
         var channelGroup = $('h2 > a', div).text().trim();
-        if (argv.c) {
+        if (argv.listChannelGroup) {
             console.log(`btv:${channelGroup}`);
             continue;
         }
@@ -55,7 +55,7 @@ function *grab(config, argv) {
             var channelName = $(a).text().trim();
             var channelFullName = `btv:${channelGroup}:${channelName}`;
 
-            if (argv.l) {
+            if (argv.listChannels) {
                 console.log(`btv:${channelGroup}:${channelName}`);
                 continue;
             }

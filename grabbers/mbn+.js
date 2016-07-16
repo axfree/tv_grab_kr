@@ -18,12 +18,12 @@ function *grab(config, argv) {
     var channelName = 'MBN+';
     var channelFullName = `mbn+:${channelGroup}:${channelName}`;
 
-    if (argv.c) {
+    if (argv.listChannelGroup) {
         console.log(`mbn+:${channelGroup}`);
         return null;
     }
 
-    if (argv.l) {
+    if (argv.listChannels) {
         console.log(channelFullName);
         return null;
     }
