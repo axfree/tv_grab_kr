@@ -98,8 +98,9 @@ function *grab(config, argv) {
             // 원티드<5회,6회>(재)
             // TV 동물농장(재)
             // 프리한 19(6회)<여행지19>(재)     # tvN
-            //                                  1               2:episode               3:subtitle
-            var m = schedule.programName.match(/(.*?)(?:\s*[\(<]([\d,회]+)[\)>])?(?:\s*<(.*?)>)?(\(재\))?$/);
+            // 남자들의 동영상 랭크쇼 (53회)<10만 폐인 헌정 방송, 악마의 게임 16>(재)
+            //                                  1               2:episode              3:subtitle
+            var m = schedule.programName.match(/(.*?)(?:\s*[\(<]([\d,회]+)[\)>])?(?:\s*<([^<]*?)>)?(\(재\))?$/);
             if (m) {
                 program.title = m[1];
                 if (m[2])
@@ -109,6 +110,19 @@ function *grab(config, argv) {
                 if (m[4])
                     program.rebroadcast = true;
             }
+            // program.title = schedule.programName;
+            // program.title.replace(/(.*?)(\(재\))$/, (match, p1) => {
+            //     program.title = p1;
+            //     program.rebroadcast = true;
+            // });
+            // program.title.replace(/(.*?)(?:\s*<([^<]*)>)$/, (match, p1, p2) => {
+            //     program.title = p1;
+            //     program.subtitle = p2;
+            // });
+            // program.title.replace(/(.*?)(?:\s*[\(<]([\d,회]+)[\)>])$/, (match, p1, p2) => {
+            //     program.title = p1;
+            //     program.episode = p2;
+            // });
 
             programs.push(program);
         });
