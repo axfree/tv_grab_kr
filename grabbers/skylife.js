@@ -77,8 +77,9 @@ function *grab(config, argv) {
 
         var programs = [];
         var date = moment.tz('Asia/Seoul').startOf('day');
-        const ents = { amp: '&', lt: '<', gt: '>' };
+        const ents = { amp: '&', lt: '<', gt: '>', quot: '"' };
         const reEnts = new RegExp('(' + Object.keys(ents).join('|') + ');', 'g');
+        const reAmpEnts = new RegExp('&(' + Object.keys(ents).join('|') + ');', 'g');
 
         for (var d = 0; d < 2; d++) {
             var res = yield request.post('http://www.skylife.co.kr/channel/epg/channelScheduleList.do', {
@@ -102,12 +103,12 @@ function *grab(config, argv) {
                 programs.push({
                     start: moment(schedule.starttime + '+0900', 'YYYYMMDDHHmmssZ'),
                     stop: moment(schedule.endtime + '+0900', 'YYYYMMDDHHmmssZ'),
-                    title: schedule.program_name,
+                    title: schedule.program_name.replace(reAmpEnts, (m, e) => ents[e]),
                     subtitle: schedule.program_subname ? schedule.program_subname.replace(reEnts, (m, e) => ents[e]) : null,
                     category: schedule.program_category1,
                     episode: schedule.episode_id ? schedule.episode_id + '회' : null,
                     rebroadcast: schedule.rebroad,
-                    desc: schedule.summary,
+                    desc: schedule.summary ? schedule.summary.replace(reEnts, (m, e) => ents[e]) : null,
                     rating: schedule.grade
                 });
             });

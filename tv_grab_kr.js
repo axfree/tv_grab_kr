@@ -47,7 +47,7 @@ var config = {
 });
 
 argv
-    .version('0.2.0', '-v, --version')
+    .version('0.2.2', '-v, --version')
     .description('tv_grab_kr grabber by axfree')
     .option('-l, --list-channels', 'list all available channels')
     .option('-c, --list-channel-group', 'list all available channel group')
