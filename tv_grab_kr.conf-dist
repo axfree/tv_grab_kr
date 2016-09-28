@@ -1,7 +1,7 @@
 {
   "channelFilters": [
     "^skylife:",
-    "^naver:.*:키즈원"
+    "^naver:.*:키즈원",
     "^polaristv:",
     "^mbn\\+:"
   ],
