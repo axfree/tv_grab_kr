@@ -25,6 +25,7 @@
     "co": "^4.6.0",
     "co-request": "^1.0.0",
     "commander": "^2.9.0",
+    "entities": "^1.1.1",
     "iconv-lite": "^0.4.13",
     "moment-timezone": "^0.5.4",
     "net": "^1.0.2",
