@@ -33,80 +33,55 @@ function *grab(config, argv) {
 
     console.log(channelFullName);
 
-    var res = yield request.get('http://www.polaristv.co.kr/bbs/board.php?bo_table=qtone&wr_id=21', {
+    var res = yield request.get('http://www.polaristv.com/schedule.asp', {
         headers: {
             'User-Agent': ua,
-        },
-        json: true,
-    });
-
-    var date = moment.tz('Asia/Seoul').startOf('isoWeek');  // this monday
-    var dateMatches = res.body.match(/\d+월 \d주차 \((\d+)\.(\d+)~/);
-    if (dateMatches) {
-        var m = +dateMatches[1];
-        var d = +dateMatches[2];
-        if (date.month() + 1 != m || date.date() != d) {
-            console.error('epg is not yet updated for this week');
-            date.add(-7, 'days');
-            // return 0;
         }
-    }
-
-    var res = yield request.get('http://www.polaristv.co.kr/bbs/getSchedule.php?bo_table=qtone&wr_id=21', {
-        headers: {
-            'User-Agent': ua,
-        },
-        json: true,
     });
 
+    var dateMatches = res.body.match(/주간편성표 \((.*?) ~ (.*?)\)/);
+    if (!dateMatches)
+        return [];
+
+    var date = moment(dateMatches[1] + '+0900', 'YYYYMMDDZ');
     var programs = [];
-    var data = res.body;
-    for (var k in data) {
-        var schedules = data[k];
-        for (var t in schedules) {
-            var schedule = schedules[t];
-            var h = parseInt(t.split(':')[0]);
-            var m = parseInt(t.split(':')[1]);
+    for (var d = 1; d <= 7; d++) {
+        var tds = $(`td.${d}a > div.pro_title`, res.body);
+        if (tds.length == 0)
+            tds = $(`td.${d}a`, res.body);
+
+        tds.each((idx, td) => {
+            var h = 6 + idx;
             var program = {};
-            program.start = moment(date).hours(h).minutes(m);
-            if (h >= 0 && h < 6)
-                program.start.add(1, 'days');
-            var matches = schedule.name.replace(/<br \/>/g, ' ')
-                                       .replace(/  /g, ' ')
-                                       .match(/(.*?)(?:\s*\((.*?)\))?$/);
-            if (matches) {
-                // console.dir(matches);
-                program.title = matches[1];
-                if (matches[2]) {
-                    // extract episode number from the subtitle
-                    var episodeMatches = matches[2].match(/^(.*?)(\d+)회?$/);
-                    if (episodeMatches) {
-                        if (episodeMatches[1])
-                            program.subtitle = episodeMatches[1];
-                        program.episode = episodeMatches[2] + '회';
-                    }
-                    else
-                        program.subtitle = matches[2];
+            $(td).children().each((idx, pro) => {
+                var m = +$('.pro_title_min', pro).text();
+                var title = $('.pro_title_txt', pro).text();
+                program.start = moment(date).hours(h).minutes(m);
+                // https://regex101.com/r/UziqxB/1
+                //
+                // 여행의발견(캄보디아1)
+                // 드라마스페셜(이브의 복수3회)
+                // 렛미트레블(3회)
+                // 대한민국 구석구석 (6회)
+                var titleMatches = title.match(/(.+?)\s*(?:\((.*?)(\d+회)?\))/);
+                if (titleMatches) {
+                    program.title = titleMatches[1];
+                    program.subtitle = titleMatches[2];
+                    program.episode = titleMatches[3];
+                }
+                else {
+                    program.title = title;
                 }
 
-                if (!program.episode) {
-                    // extract episode number from the title
-                    var episodeMatches = program.title.match(/(.*?) (\d+)$/);
-                    if (episodeMatches) {
-                        program.title = episodeMatches[1];
-                        program.episode = episodeMatches[2] + '회';
-                    }
-                }
-            }
-
-            programs.push(program);
-        }
+                programs.push(program);
+            });
+        });
 
         date.add(1, 'days');
     }
 
     channels[channelName] = {
-        icon: 'http://www.polaristv.co.kr/images/logo2.png',
+        icon: 'http://www.polaristv.com/images/logo2.png',
         group: channelGroup,
         programs: programs
     };
