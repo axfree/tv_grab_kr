@@ -164,7 +164,16 @@ co(function* () {
 
             if (program.rating || program.rating === 0)
                 prog.startElement('rating').writeAttribute('system', 'VCHIP')
-                                           .writeElement('value', (program.rating == 0) ? '모든 연령 시청가' : program.rating + '세 이상 시청가');
+                                           .writeElement('value', (program.rating == 0) ? '모든 연령 시청가' : program.rating + '세 이상 시청가').endElement();
+            if (program.directors || program.actors) {
+                var credits = prog.startElement('credits');
+                if (program.directors)
+                    program.directors.split(',').forEach(director => credits.writeElement('director', director));
+                if (program.actors)
+                    program.actors.split(',').forEach(actor => credits.writeElement('actor', actor));
+                credits.endElement();
+            }
+
             prog.endElement();
 
             doc.writeRaw(prog);

@@ -39,6 +39,8 @@ var channelTypes = { 1:'otl', 2:'ots' };
 
 function *grab(config, argv) {
     var channels = {};
+
+    // otl, ots
     for (var channelType of Object.keys(channelTypes)) {
         var channelGrabber = channelTypes[channelType];
         var res = yield request.post('http://tv.olleh.com/tvinfo/liveCH/live.asp', {
@@ -120,6 +122,90 @@ function *grab(config, argv) {
                     programs: programs
                 };
             }
+        }
+    }
+
+    // otm
+    var channelGrabber = 'otm';
+    var res = yield request('http://menu.megatvdnp.co.kr:38080/v5/0/api/epg_chlist?istest=0', {
+        headers: {
+            'User-Agent': 'OMS(compatible;ServiceType/OTN;DeviceType/Android;DeviceModel/Nexus5;OSType/Android;OSVersion/6.0;AppVersion/5.1.20)'
+        },
+        json: true
+    });
+
+    for (var catList of res.body.data.list) {
+        var cat = catList.list_category[0];
+        var channelGroup = cat.category_name;
+        if (channelGroup == 'MY 채널' || channelGroup == '24시간 음악방송')
+            continue;
+
+        if (argv.listChannelGroup) {
+            console.log(`${channelGrabber}:${channelGroup}`);
+            continue;
+        }
+
+        for (var ch of cat.list_channel) {
+            var channelNumber = ch.ch_no;
+            var channelName = ch.service_ch_name;
+            var channelIcon = ch.ch_image_list;
+            var channelFullName = `${channelGrabber}:${channelGroup}:${channelName}`;
+
+            if (argv.listChannels) {
+                console.log(channelFullName);
+                continue;
+            }
+
+            if (config.channelFilters.length > 0 && !config.channelFilters.some(re => channelFullName.match(re)))
+                continue;
+
+            console.log(channelFullName);
+
+            var res = yield request(`http://menu.megatvdnp.co.kr:38080/app5/0/api/epg_proglist?istest=0&ch_no=${channelNumber}`, {
+                headers: {
+                    'User-Agent': 'OMS(compatible;ServiceType/OTN;DeviceType/Android;DeviceModel/Nexus5;OSType/Android;OSVersion/6.0;AppVersion/5.1.20)'
+                },
+                json: true
+            });
+
+            var programs = [];
+            var date = moment.tz('Asia/Seoul');
+            res.body.data.list.forEach((prog, idx) => {
+                var start = moment(date.format('YYYYMMDD') + prog.start_time + '+0900', 'YYYYMMDDHHmmZ');
+                var end = moment(date.format('YYYYMMDD') + prog.end_time + '+0900', 'YYYYMMDDHHmmZ');
+                if (start.diff(end) > 0) {
+                    if (idx == 0)
+                        start = moment(start).add(-1, 'days');
+                    else
+                        end = moment(end).add(1, 'days');
+                }
+                var program = {
+                    title: decodeURIComponent(prog.program_name.replace(/\+/g, ' ')),
+                    subtitle: decodeURIComponent(prog.program_subname.replace(/\+/g, ' ')),
+                    start: start,
+                    end: end,
+                    rebroadcast: (prog.rebroad == 'Y'),
+                    rating: +prog.rating,
+                    directors: prog.director,
+                    actors: prog.cast
+                };
+
+                if (program.subtitle) {
+                    var subtitleIndex = program.title.lastIndexOf(program.subtitle);
+                    if (subtitleIndex > 0)
+                        program.title = program.title.substring(0, subtitleIndex).trim();
+
+                    program.subtitle = program.subtitle.match(/^<(.*?)>$/) [1];
+                }
+
+                programs.push(program);
+            });
+
+            channels[channelName] = {
+                icon: channelIcon,
+                group: channelGroup,
+                programs: programs
+            };
         }
     }
 
