@@ -32,6 +32,16 @@ var iconv     = require('iconv-lite');
 //     오픈
 //     유료
 //     오디오
+//   otm:
+//     종편/EBS/홈쇼핑
+//     오락/음악/영화
+//     뉴스/경제
+//     2017 프로야구
+//     스포츠/레져
+//     애니/유아/교육
+//     다큐/교양
+//     성인 유료채널
+//     가이드
 
 var ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36';
 
@@ -171,13 +181,13 @@ function *grab(config, argv) {
             var programs = [];
             var date = moment.tz('Asia/Seoul');
             res.body.data.list.forEach((prog, idx) => {
-                var start = moment(date.format('YYYYMMDD') + prog.start_time + '+0900', 'YYYYMMDDHHmmZ');
-                var end = moment(date.format('YYYYMMDD') + prog.end_time + '+0900', 'YYYYMMDDHHmmZ');
+                var start = moment(date.format('YYYYMMDD') + prog.start_time + '+0900', 'YYYYMMDDHH:mmZ');
+                var end = moment(date.format('YYYYMMDD') + prog.end_time + '+0900', 'YYYYMMDDHH:mmZ');
                 if (start.diff(end) > 0) {
                     if (idx == 0)
-                        start = moment(start).add(-1, 'days');
+                        start.add(-1, 'days');
                     else
-                        end = moment(end).add(1, 'days');
+                        end.add(1, 'days');
                 }
                 var program = {
                     title: decodeURIComponent(prog.program_name.replace(/\+/g, ' ')),
