@@ -84,15 +84,20 @@ co(function* () {
 
     var channels = {};
     for (var grabber of grabbers) {
-        var grabbedChannels = yield grabber.grab(config, argv);
+        try {
+            var grabbedChannels = yield grabber.grab(config, argv);
 
-        for (var channelName in grabbedChannels) {
-            if (channels[channelName]) {
-                // merge channel epgs
+            for (var channelName in grabbedChannels) {
+                if (channels[channelName]) {
+                    // merge channel epgs
+                }
+                else {
+                    channels[channelName] = grabbedChannels[channelName];
+                }
             }
-            else {
-                channels[channelName] = grabbedChannels[channelName];
-            }
+        }
+        catch (err) {
+            console.error(err.stack);
         }
     }
 
