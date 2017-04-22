@@ -82,7 +82,7 @@ function *grab(config, argv) {
         const reAmpEnts = new RegExp('&(' + Object.keys(ents).join('|') + ');', 'g');
 
         for (var d = 0; d < 2; d++) {
-            var res = yield request.post('http://www.skylife.co.kr/channel/epg/channelScheduleList.do', {
+            var res = yield request.post('http://www.skylife.co.kr/channel/epg/channelScheduleListJson.do', {
                 headers: {
                     'User-Agent': ua,
                 },
