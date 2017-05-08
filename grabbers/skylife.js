@@ -4,123 +4,110 @@
 
 var request   = require("co-request");
 var moment    = require('moment-timezone');
+var entities  = require("entities");
 
 var ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36';
 
 function *grab(config, argv) {
-    if (argv.listChannels || argv.listChannelGroup) {
-        var res = yield request.post('http://www.skylife.co.kr/channel/channel_number/channelListAjax.do', {
+    var res = yield request('http://www.skylife.co.kr/channel/epg/channelChart.do', {
+        headers: {
+            'User-Agent': ua,
+        }
+    });
+    var genres = {};
+    res.body.replace(/getChannelList\('(\d+?)','(.+?)'\)/g, (m, id, name) => genres[id] = name);
+
+    var channels = [];
+    for (var genreId of Object.keys(genres)) {
+        if (argv.listChannelGroup) {
+            console.log(`skylife:${genres[genreId]}`);
+            continue;
+        }
+        var res = yield request.post('http://www.skylife.co.kr/channel/epg/channelScheduleListInfo.do', {
             headers: {
                 'User-Agent': ua,
             },
-            form: { fd_mapp_cd: '' },
+            form: {
+                area: 'out',
+                date_type: 'now',
+                // airdate: date.format('YYYY-MM-DD'),         // 2017-05-08
+                pk_epg_mapp: '',
+                fd_mapp_cd: genreId,                        // 4003
+                searchColumn: '',
+                searchString: '',
+                selectString: ''
+            },
             json: true
         });
 
-        var channels = [];
-        for (var channel of res.body.channelList) {
+        for (var channel of res.body.channelListInfo) {
             var channelName = channel.fd_channel_name.replace(/(.+) (SBS|KBS1|KBS2|MBC)$/, '$2 $1')
                                                      .replace(/^MBC(경남)/, 'MBC $1')
                                                      .replace(/^(진주)MBC/, 'MBC $1')
                                                      .replace(/^jtbc/i, 'JTBC');
-            channels.push({
-                name: channelName,
-                group: channel.fd_genre_name || ''
-            });
-        }
-        channels.sort((a, b) => {
-            return `${a.group}:${a.name}`.localeCompare(`${b.group}:${b.name}`);
-        })
-
-        var lastGroup = '.';
-        channels.forEach(c => {
-            if (c.group != lastGroup) {
-                if (argv.listChannelGroup)
-                    console.log(`skylife:${c.group}`);
-                lastGroup = c.group;
+            var channelFullName = `skylife:${genres[genreId]}:${channelName}`;
+            if (argv.listChannels) {
+                console.log(channelFullName);
+                continue;
             }
-            if (argv.listChannels)
-                console.log(`skylife:${c.group}:${c.name}`);
-        });
 
-        return null;
-    }
+            if (config.channelFilters.length > 0 && !config.channelFilters.some(re => channelFullName.match(re)))
+                continue;
 
-    var res = yield request.post('http://www.skylife.co.kr/channel/channel_number/channelListAjax.do', {
-        headers: {
-            'User-Agent': ua,
-        },
-        form: { fd_mapp_cd: '' },
-        json: true
-    });
+            if (channels[channelName]) {
+                console.log(channelName, 'skip');
+                continue;
+            }
+            console.log(channelFullName);
 
-    var channels = {};
-    var channelList = res.body.channelList;
-    for (var channel of channelList) {
-        // console.dir(channel);
-        if (!channel.fd_channel_id)
-            continue;
-
-        var channelName = channel.fd_channel_name.replace(/(.+) (SBS|KBS1|KBS2|MBC)$/, '$2 $1')
-                                                 .replace(/^MBC(경남)/, 'MBC $1')
-                                                 .replace(/^(진주)MBC/, 'MBC $1')
-                                                 .replace(/^jtbc/i, 'JTBC');
-        var channelFullName = `skylife:${channel.fd_genre_name || ''}:${channelName}`;
-        if (config.channelFilters.length > 0 && !config.channelFilters.some(re => channelFullName.match(re)))
-            continue;
-
-        if (channels[channelName]) {
-            // console.log(channelName, 'skip');
-            continue;
-        }
-        console.log(channelFullName);
-
-        var programs = [];
-        var date = moment.tz('Asia/Seoul').startOf('day');
-        const ents = { amp: '&', lt: '<', gt: '>', quot: '"' };
-        const reEnts = new RegExp('(' + Object.keys(ents).join('|') + ');', 'g');
-        const reAmpEnts = new RegExp('&(' + Object.keys(ents).join('|') + ');', 'g');
-
-        for (var d = 0; d < 2; d++) {
-            var res = yield request.post('http://www.skylife.co.kr/channel/epg/channelScheduleListJson.do', {
-                headers: {
-                    'User-Agent': ua,
-                },
-                form: {
-                    area: 'in',
-                    indate_type: 'now',                 // 'next', 'next'
-                    inairdate: date.format('YYYY-M-D'), // '2016-7-5',
-                    inFd_channel_id: channel.fd_channel_id
-                },
-                json: true
-            });
-
-            res.body.scheduleListIn.forEach(schedule => {
-                var start = moment(schedule.starttime + '+0900', 'YYYYMMDDHHmmssZ');
-                if (start.diff(date) < 0)
-                    return;
-
-                programs.push({
-                    start: moment(schedule.starttime + '+0900', 'YYYYMMDDHHmmssZ'),
-                    stop: moment(schedule.endtime + '+0900', 'YYYYMMDDHHmmssZ'),
-                    title: schedule.program_name.replace(reAmpEnts, (m, e) => ents[e]),
-                    subtitle: schedule.program_subname ? schedule.program_subname.replace(reEnts, (m, e) => ents[e]) : null,
-                    category: schedule.program_category1,
-                    episode: schedule.episode_id ? schedule.episode_id + '회' : null,
-                    rebroadcast: schedule.rebroad,
-                    desc: schedule.summary ? schedule.summary.replace(reEnts, (m, e) => ents[e]) : null,
-                    rating: schedule.grade
+            var programs = [];
+            var date = moment.tz('Asia/Seoul').startOf('day');
+            for (var d = 0; d < 2; d++) {
+                var res = yield request.post('http://www.skylife.co.kr/channel/epg/channelScheduleListInfo.do', {
+                    headers: {
+                        'User-Agent': ua,
+                    },
+                    form: {
+                        area: 'detail',
+                        date_type: 'now',
+                        airdate: date.format('YYYY-MM-DD'),     // 2017-05-08
+                        pk_epg_mapp: '',
+                        fd_mapp_cd: genreId,                    // 4003
+                        fd_channel_id: channel.fd_channel_id,   // 798
+                        searchColumn: '',
+                        searchString: '',
+                        selectString: '',
+                    },
+                    json: true
                 });
-            });
 
-            date.add(1, 'days');
+                res.body.scheduleListIn.forEach(schedule => {
+                    var start = moment(schedule.starttime + '+0900', 'YYYYMMDDHHmmssZ');
+                    if (start.diff(date) < 0)
+                        return;
+
+                    programs.push({
+                        start: start,
+                        stop: moment(schedule.endtime + '+0900', 'YYYYMMDDHHmmssZ'),
+                        title: entities.decodeHTML(schedule.program_name),
+                        subtitle: schedule.program_subname ? entities.decodeHTML(schedule.program_subname) : null,
+                        category: schedule.program_category1,
+                        episode: schedule.episode_id ? schedule.episode_id + '회' : null,
+                        rebroadcast: schedule.rebroad,
+                        desc: schedule.summary ? entities.decodeHTML(schedule.summary) : null,
+                        rating: schedule.grade
+                    });
+                });
+
+                date.add(1, 'days');
+            }
+
+            channels[channelName] = {
+                icon: 'http:' + channel.fd_logo_path,
+                group: genres[genreId], // genres[channel.fd_genre_name],
+                programs: programs
+            };
         }
-
-        channels[channelName] = {
-            icon: 'http:' + channel.fd_logo_path,
-            group: channel.fd_genre_name || '',
-            programs: programs
-        };
     }
 
     return channels;
