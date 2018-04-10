@@ -9,7 +9,9 @@ var entities  = require("entities");
 var ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36';
 
 function *grab(config, argv) {
-    var res = yield request('http://www.skylife.co.kr/channel/epg/channelChart.do', {
+    var jar = request.jar();
+    var res = yield request('https://www.skylife.co.kr/channel/epg/channelChart.do', {
+        jar: jar,
         headers: {
             'User-Agent': ua,
         }
@@ -23,9 +25,11 @@ function *grab(config, argv) {
             console.log(`skylife:${genres[genreId]}`);
             continue;
         }
-        var res = yield request.post('http://www.skylife.co.kr/channel/epg/channelScheduleListInfo.do', {
+        var res = yield request.post('https://www.skylife.co.kr/channel/epg/channelScheduleListInfo.do', {
+            jar: jar,
             headers: {
                 'User-Agent': ua,
+                // Referer: 'https://www.skylife.co.kr/channel/epg/channelChart.do'
             },
             form: {
                 area: 'out',
@@ -63,7 +67,8 @@ function *grab(config, argv) {
             var programs = [];
             var date = moment.tz('Asia/Seoul').startOf('day');
             for (var d = 0; d < 2; d++) {
-                var res = yield request.post('http://www.skylife.co.kr/channel/epg/channelScheduleListInfo.do', {
+                var res = yield request.post('https://www.skylife.co.kr/channel/epg/channelScheduleListInfo.do', {
+                    jar: jar,
                     headers: {
                         'User-Agent': ua,
                     },
