@@ -1,6 +1,6 @@
 {
   "name": "tv_grab_kr",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "",
   "main": "tv_grab_kr.js",
   "repository": {
@@ -21,10 +21,11 @@
   "author": "axfree@live.com",
   "license": "ISC",
   "dependencies": {
-    "cheerio": "^0.20.0",
+    "cheerio": "^0.22.0",
     "co": "^4.6.0",
     "co-request": "^1.0.0",
     "commander": "^2.9.0",
+    "delay": "^4.1.0",
     "entities": "^1.1.1",
     "iconv-lite": "^0.4.13",
     "moment-timezone": "^0.5.4",

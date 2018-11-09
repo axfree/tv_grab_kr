@@ -3,7 +3,10 @@
 'use strict';
 
 var request   = require("co-request");
+var $         = require('cheerio');
 var moment    = require('moment-timezone');
+var iconv     = require('iconv-lite');
+var delay     = require('delay');
 
 // channelGroups:
 // 5100 지상파
@@ -53,7 +56,8 @@ function *grab(config, argv) {
                 no: ch.ch_no,
                 name: ch.m_name,
                 group: genre.m_name,
-                key: ch.c_menu,
+                d1: genre.c_menu,
+                d2: ch.c_menu,
             });
             if (argv.listChannels)
                 console.log(`btv:${genre.m_name}:${ch.m_name}`);
@@ -75,60 +79,56 @@ function *grab(config, argv) {
 
         console.log(channelFullName);
 
-        var res = yield request.post('http://m.btvplus.co.kr/Common/Inc/IFGetData.asp', {
-            headers: {
-                'User-Agent': ua,
-            },
-            form: {
-                variable: 'IF_LIVECHART_DETAIL',
-                pcode: `|^|start_time=${startDate.format('YYYYMMDD')}00|^|end_time=${endDate.format('YYYYMMDD')}00|^|svc_id=${channel.key}`,
-            },
-            json: true
-        });
-
         var programs = [];
-        res.body.channel.programs.forEach(schedule => {
-            var program = {};
+        var date = moment.tz('Asia/Seoul').startOf('day');
+        for (var d = 0; d < 2; d++) {
+            var res = yield request.get('http://m.skbroadband.com/content/realtime/Channel_List.do', {
+                headers: {
+                    'User-Agent': ua,
+                },
+                qs: {
+                    key_depth1: channel.d1,                 // 5100
+                    key_depth2: channel.d2,                 // 14
+                    key_depth3: date.format('YYYYMMDD'),    // 20181113
+                },
+                encoding: null
+            });
 
-            program.start = moment(schedule.startTime);
-            program.end = moment(schedule.endTime);
-            program.category = schedule.mainGenreName;
+            var lis = $('#uiScheduleTabContent > div > ol > li', iconv.decode(res.body, 'cp949'));
+            lis.each((idx, li) => {
+                var program = {};
 
-            // 미녀 공심이(16회)(재)
-            // 원티드<5회,6회>(재)
-            // TV 동물농장(재)
-            // 프리한 19(6회)<여행지19>(재)     # tvN
-            // 남자들의 동영상 랭크쇼 (53회)<10만 폐인 헌정 방송, 악마의 게임 16>(재)
-            //                                  1               2:episode              3:subtitle
-            var m = schedule.programName.match(/(.*?)(?:\s*[\(<]([\d,회]+)[\)>])?(?:\s*<([^<]*?)>)?(\(재\))?$/);
-            if (m) {
-                program.title = m[1];
-                if (m[2])
-                    program.episode = m[2];
-                if (m[3])
-                    program.subtitle = m[3];
-                if (m[4])
-                    program.rebroadcast = true;
-            }
-            // program.title = schedule.programName;
-            // program.title.replace(/(.*?)(\(재\))$/, (match, p1) => {
-            //     program.title = p1;
-            //     program.rebroadcast = true;
-            // });
-            // program.title.replace(/(.*?)(?:\s*<([^<]*)>)$/, (match, p1, p2) => {
-            //     program.title = p1;
-            //     program.subtitle = p2;
-            // });
-            // program.title.replace(/(.*?)(?:\s*[\(<]([\d,회]+)[\)>])$/, (match, p1, p2) => {
-            //     program.title = p1;
-            //     program.episode = p2;
-            // });
+                var [ hh, mm ] = $('p.time', li).text().split(':');    // 06:30
+                program.start = moment(date).hours(+hh).minutes(+mm);
 
-            programs.push(program);
-        });
+                var m = $('p.cont', li).contents().first().text().trim().match(/(.*?)(?:\s*[\(<]([\d,회]+)[\)>])?(?:\s*<([^<]*?)>)?(\(재\))?$/);
+                if (m) {
+                    program.title = m[1];
+                    if (m[2])
+                        program.episode = m[2];
+                    if (m[3])
+                        program.subtitle = m[3];
+                    if (m[4])
+                        program.rebroadcast = true;
+                }
+
+                $('.flag_box > span', li).each((idx, span) => {
+                    if ($(span).hasClass('flag06'))
+                        program.grade = 12;
+                    else if ($(span).hasClass('flag07'))
+                        program.grade = 15;
+                    else if ($(span).hasClass('flag08'))
+                        program.grade = 19;
+                })
+
+                programs.push(program);
+            });
+
+            yield delay(200);
+        }
 
         channels[channel.name] = {
-            icon: `http://m.btvplus.co.kr/img/ChannelLogo/epg_${channel.key}.png`,  // 274x84
+            icon: `http://m.btvplus.co.kr/data/btvplus/admobd/channelLogo/nsepg_${channel.d2}.png`,
             group: channel.group,
             programs: programs
         };
