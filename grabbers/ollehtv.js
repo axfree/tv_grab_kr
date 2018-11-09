@@ -228,17 +228,16 @@ function *grab(config, argv) {
 
     // otm
     var channelGrabber = 'otm';
-    var res = yield request('http://menu.megatvdnp.co.kr:38080/v5/0/api/epg_chlist?istest=0', {
+    var res = yield request.get('http://menu.megatvdnp.co.kr:38080/app5/0/api/epg_chCategory?istest=0', {
         headers: {
             'User-Agent': 'OMS(compatible;ServiceType/OTN;DeviceType/Android;DeviceModel/Nexus5;OSType/Android;OSVersion/6.0;AppVersion/5.1.20)'
         },
         json: true
     });
 
-    for (var catList of res.body.data.list) {
-        var cat = catList.list_category[0];
+    for (var cat of res.body.data.list) {
         var channelGroup = cat.category_name;
-        if (channelGroup == 'MY 채널' || channelGroup == '24시간 음악방송')
+        if (/전체|인기|오디오/.test(channelGroup))
             continue;
 
         if (argv.listChannelGroup) {
@@ -246,7 +245,17 @@ function *grab(config, argv) {
             continue;
         }
 
-        for (var ch of cat.list_channel) {
+        var res = yield request.get(`http://menu.megatvdnp.co.kr:38080/app5/0/api/epg_chlist_5_1?istest=0&category_id=${cat.category_id}`, {
+            headers: {
+                'User-Agent': 'OMS(compatible;ServiceType/OTN;DeviceType/Android;DeviceModel/Nexus5;OSType/Android;OSVersion/6.0;AppVersion/5.1.20)'
+            },
+            json: true
+        });
+
+        for (var ch of res.body.data.list[0].list_channel) {
+            if (ch.type != 'EPG')
+                continue;
+
             var channelNumber = ch.ch_no;
             var channelName = ch.service_ch_name;
             var channelIcon = ch.ch_image_list;
