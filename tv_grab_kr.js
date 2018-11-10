@@ -31,15 +31,7 @@ var config = {
 
 [ "/etc/tv_grab_kr.conf", "/etc/config/tv_grab_kr.conf", "~/.tv_grab_kr" ].forEach(function (file) {
     try {
-        var conf = JSON.parse(fs.readFileSync(file.replace(/^~/, userHome)));
-        for (var k in conf) {
-            if (k == 'channelFilters') {
-                conf[k].forEach((re, idx) => {
-                    conf[k][idx] = new RegExp(re);
-                });
-            }
-            config[k] = conf[k];
-        }
+        Object.assign(config, JSON.parse(fs.readFileSync(file.replace(/^~/, userHome))));
     }
     catch (err) {
         if (err.code != 'ENOENT') throw err;
@@ -51,7 +43,10 @@ argv
     .description('tv_grab_kr grabber by axfree')
     .option('-l, --list-channels', 'list all available channels')
     .option('-c, --list-channel-group', 'list all available channel group')
-    .option('-g, --channel-filter [regex]', 'select only channels matching regular expression')
+    .option('-g, --channel-filter [regex]', 'select only channels matching regular expression (can be used multiple times)', (re, res) => {
+        res.push(re);
+        return res;
+    }, [])
     // baseline options
     .option('-n, --days [X]', 'supply data for X days', (days) => config.days = days)
     .option('-o, --offset [X]', 'start with data for day today plus X days', (offset) => config.offset = offset)
@@ -68,12 +63,11 @@ argv
     .parse(process.argv);
 
 co(function* () {
-    if (argv.channelFilter) {
-        config.channelFilters = Array.isArray(argv.channelFilter) ? argv.channelFilter : [ argv.channelFilter ];
-        config.channelFilters.forEach((re, idx) => {
-            config.channelFilters[idx] = new RegExp(re);
-        });
-    }
+    if (argv.channelFilter.length > 0)
+        config.channelFilters = argv.channelFilter;
+
+    if (config.channelFilters)
+        config.channelFilters = config.channelFilters.map(re => new RegExp(re));
 
     var grabbers = [];
     const grabberFolder = __dirname + '/grabbers/';
