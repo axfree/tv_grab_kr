@@ -29,7 +29,7 @@ function *grab(config, argv) {
     });
 
     var channels = {};
-    var channelGroupsAs = $('#CATEGORY > ul > li > a', iconv.decode(res.body, 'cp949'));
+    var channelGroupsAs = $('a[href="#CHANNEL"]', iconv.decode(res.body, 'cp949'));
     for (var a of channelGroupsAs.get()) {
         var channelGroup = $(a).text();
         if (argv.listChannelGroup) {
@@ -49,7 +49,7 @@ function *grab(config, argv) {
             },
         });
 
-        var channelAs = $('li > a', iconv.decode(res.body, 'cp949'));
+        var channelAs = $('.tvcategory li > a', iconv.decode(res.body, 'cp949'));
         for (var a of channelAs.get()) {
             var m = $(a).text().match(/(.*)\(Ch\.(\d+)\)/);
             var channelName = m[1].replace(/-Full HD$/, '')

@@ -13,13 +13,13 @@ var ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KH
 function *grab(config, argv) {
     var channels = {};
     for (var broadcastType of broadcastTypes) {
-        var res = yield request.get('http://search.naver.com/search.naver', {
+        var res = yield request.get('https://search.naver.com/search.naver', {
             headers: {
                 'user-agent': ua,
                 'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
                 'accept-language': 'en-US,en;q=0.8,ko;q=0.6',
             },
-            qs: { where:'nexearch', ie:'utf8', sm:'tab_etc', query: broadcastType + ' 편성표' },
+            qs: { where:'nexearch', sm:'tab_etc', query: broadcastType + ' 편성표' },
         });
 
         var channelLIs = $('.lst_channel > li', res.body);
@@ -51,7 +51,7 @@ function *grab(config, argv) {
                 }
                 console.log(channelFullName);
 
-                var res = yield request.get('http://search.naver.com/search.naver' + $(a).attr('href'), {
+                var res = yield request.get('https://search.naver.com/search.naver' + $(a).attr('href'), {
                     headers: {
                         'user-agent': ua,
                         'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
