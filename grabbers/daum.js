@@ -30,16 +30,16 @@ function *grab(config, argv) {
             var channelGroup = $(ul).parent().find('strong').text().trim();
             var channelAs = $('a', ul);
             if (argv.listChannelGroup) {
-                console.log(`daum:${broadcastType}:${channelGroup}`);
+                console.log(channelGroup ? `daum:${broadcastType}:${channelGroup}` : `daum:${broadcastType}`);
                 continue;
             }
 
             for (var a of channelAs.get()) {
                 var channelName = $(a).text().trim().replace(/^HD /, '')
                                                     .replace(/(.+) (SBS|KBS1|KBS2|MBC)$/, '$2 $1')
-                                                    .replace(/^MBC(경남)/, 'MBC $1')
+                                                    .replace(/^MBC(경남|강원영동)/, 'MBC $1')
                                                     .replace(/^(진주)MBC/, 'MBC $1');
-                var channelFullName = `daum:${broadcastType}:${channelGroup}:${channelName}`;
+                var channelFullName = channelGroup ? `daum:${broadcastType}:${channelGroup}:${channelName}` : `daum:${broadcastType}:${channelName}`;
                 if (argv.listChannels) {
                     console.log(channelFullName);
                     continue;
@@ -114,7 +114,7 @@ function *grab(config, argv) {
 
                 channels[channelName] = {
                     icon: '',
-                    group: channelGroup,
+                    group: channelGroup || broadcastType,
                     programs: programs
                 };
             }

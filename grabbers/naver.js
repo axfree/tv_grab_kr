@@ -7,36 +7,39 @@ var $         = require('cheerio');
 var moment    = require('moment-timezone');
 var entities  = require("entities");
 
-var broadcastTypes = [ '지상파', '종합편성', '케이블', '스카이라이프', '해외위성', '라디오' ];
-var ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36';
+var broadcastTypes = { 100: '지상파', 500: '종합편성', 200: '케이블', 300: '스카이라이프', 9000: '해외위성', 400: '라디오' };
 
 function *grab(config, argv) {
     var channels = {};
-    for (var broadcastType of broadcastTypes) {
-        var res = yield request.get('https://search.naver.com/search.naver', {
-            headers: {
-                'user-agent': ua,
-                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'accept-language': 'en-US,en;q=0.8,ko;q=0.6',
-            },
-            qs: { where:'nexearch', sm:'tab_etc', query: broadcastType + ' 편성표' },
-        });
 
-        var channelLIs = $('.lst_channel > li', res.body);
-        for (var li of channelLIs.get()) {
-            var channelGroup = $('h6 > a', li).text();
+    for (var u1 in broadcastTypes) {
+        var broadcastType = broadcastTypes[u1];
+        var res = yield request.get('https://m.search.naver.com/p/csearch/content/batchrender.nhn', {
+            qs: {
+                callback: 'jQuery11240016264589754078962_1546610007667',
+                pkid: 66,
+                where: 'nexearch',
+                fileKey: 'ScheduleChannelList',
+                u1: u1,
+                _: Date.now(),            // 1546610007670
+            }
+        });
+        var br = JSON.parse(res.body.match(/jQuery.*?\((.*)?\)/)[1]);
+
+        var genres = $('.genre_list', br.dataHtml);
+        for (var genre of genres.get()) {
+            var channelGroup = $(genre).prev('strong').text();
             if (argv.listChannelGroup) {
-                console.log(`naver:${broadcastType}:${channelGroup}`);
+                console.log(channelGroup ? `naver:${broadcastType}:${channelGroup}` : `naver:${broadcastType}`);
                 continue;
             }
 
-            var channelsAs = $('ul.lst_channel_s > li > a', li);
-            // channelsAs = $('<a href="?where=nexearch&ie=utf8&sm=tab_etc&query=%EC%82%B0%EC%97%85%EB%B0%A9%EC%86%A1%20%EC%B1%84%EB%84%90i%20%ED%8E%B8%EC%84%B1%ED%91%9C">산업방송 채널i</a>');
+            var channelsAs = $('.channel_name > a', genre);
             for (var a of channelsAs.get()) {
                 var channelName = $(a).text().trim().replace(/(.+) (SBS|KBS1|KBS2|MBC)$/, '$2 $1')
                                                     .replace(/^MBC(경남)/, 'MBC $1')
                                                     .replace(/^(진주)MBC/, 'MBC $1');
-                var channelFullName = `naver:${broadcastType}:${channelGroup}:${channelName}`;
+                var channelFullName = channelGroup ? `naver:${broadcastType}:${channelGroup}:${channelName}` : `naver:${broadcastType}:${channelName}`;
                 if (argv.listChannels) {
                     console.log(channelFullName);
                     continue;
@@ -51,58 +54,36 @@ function *grab(config, argv) {
                 }
                 console.log(channelFullName);
 
-                var res = yield request.get('https://search.naver.com/search.naver' + $(a).attr('href'), {
-                    headers: {
-                        'user-agent': ua,
-                        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                        'accept-language': 'en-US,en;q=0.8,ko;q=0.6',
-                    },
-                });
+                var res = yield request.get('https://search.naver.com/search.naver' + $(a).attr('href'));
 
-                var m = res.body.match(/var htInitDataForTvtimeSchedule = ({[^]*?}) <\/script>/);
-                if (m) {
-                    var data = JSON.parse(m[1].replace(/\/\*.*?\*\//g, ''));
-                    var res = yield request.get('https://search.naver.com/p/csearch/content/batchrender_ssl.nhn', {
-                        headers: {
-                            'user-agent': ua,
-                        },
-                        qs: {
-                            where: 'nexearch',
-                            pkid: 66,
-                            // _callback: 'window.__jindo2_callback._7071',
-                            u1: data.ptnId,
-                            u2: data.totalDates.join(','),
-                            // u3: data.searchDate,
-                            u4: 8,
-                            u5: data.os,
-                            u6: 1,
-                            // u7: data.apiQuery,
-                            // u8: data.channelQuery,
-                            fileKey: data.ptnId
-                        },
-                    });
-                    var data = JSON.parse(res.body.replace(/\/\*.*?\*\//g, ''));
-                    var programs = [];
-                    data.displayDates.forEach((displayDate, idx) => {
-                        for (var h = 0; h < 24; h++) {
-                            data.schedules[h][idx].forEach(schedule => {
+                var programs = [];
+                var date = moment.tz('Asia/Seoul').startOf('day');
+                for (var c = 2; c < 5/*8*/; c++) {
+                    for (var r = 0; r < 24; r++) {
+                        var pts = $(`.program_list > li:nth-child(${r+1}) > div:nth-child(${c+1}) > .inner`, res.body);
+                        pts.each((idx, pt) => {
+                            //                                     1:mm     2:title   3:subtitle  4:ep           5:rt
+                            var m = $(pt).text().trim().match(/^(?:(\d+)분) (.*?)(?: <(.*)>)?(?:\((\d+회)\))?(?:  (\d+)세)?$/);
+                            if (m) {
                                 programs.push({
-                                    start: moment(displayDate.date + schedule.startTime + '+0900', 'YYYYMMDDHHmmZ'),
-                                    title: entities.decodeHTML(schedule.title),
-                                    episode: schedule.episode,
-                                    rebroadcast: schedule.isRerun,
-                                    rating: schedule.grade
+                                    start: moment(date).hours(r).minutes(m[1]),
+                                    title: m[2],
+                                    subtitle: m[3],
+                                    episode: m[4],
+                                    rebroadcast: $('.s_label.re', pt).length > 0,
+                                    rating: m[5]
                                 });
-                            });
-                        }
-                    });
-
-                    channels[channelName] = {
-                        icon: '',
-                        group: channelGroup,
-                        programs: programs
-                    };
+                            }
+                        })
+                    }
+                    date.add(1, 'days');
                 }
+
+                channels[channelName] = {
+                    icon: '',
+                    group: channelGroup || broadcastType,
+                    programs: programs
+                };
             }
         }
     }
