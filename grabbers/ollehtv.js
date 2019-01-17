@@ -239,7 +239,7 @@ function *grab(config, argv) {
                     if (subtitleIndex > 0)
                         program.title = program.title.substring(0, subtitleIndex).trim();
 
-                    program.subtitle = program.subtitle.match(/^<(.*?)>$/) [1];
+                    program.subtitle = program.subtitle.replace(/^<(.*?)(>)?$/, (m, st, r) => r ? st : st.trim() + '...');
                 }
 
                 programs.push(program);
