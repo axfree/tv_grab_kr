@@ -191,7 +191,7 @@ function *grab(config, argv) {
                 continue;
 
             var channelNumber = ch.ch_no;
-            var channelName = ch.service_ch_name;
+            var channelName = ch.service_ch_name.replace(/ \(데이터프리\)/, '');
             var channelIcon = ch.ch_image_list;
             var channelFullName = `${channelGrabber}:${channelGroup}:${channelName}`;
 
@@ -224,7 +224,7 @@ function *grab(config, argv) {
                         end.add(1, 'days');
                 }
                 var program = {
-                    title: decodeURIComponent(prog.program_name.replace(/\+/g, ' ')),
+                    title: decodeURIComponent(prog.program_name.replace(/\+/g, ' ')).replace(/^방송중 /, ''),
                     subtitle: decodeURIComponent(prog.program_subname.replace(/\+/g, ' ')),
                     start: start,
                     end: end,
