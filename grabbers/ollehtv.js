@@ -228,6 +228,7 @@ function *grab(config, argv) {
                     subtitle: decodeURIComponent(prog.program_subname.replace(/\+/g, ' ')),
                     start: start,
                     end: end,
+                    episode: prog.frequency ? prog.frequency + '회' : null,
                     rebroadcast: (prog.rebroad == 'Y'),
                     rating: +prog.rating,
                     directors: prog.director,
