@@ -25,6 +25,9 @@ var config = {
         // /산업방송 채널i/,
         // /(SBS|KBS[1-2]|MBC)$/,
     ],
+    episodeNumberings: [
+        'onscreen'
+    ],
     days: 2,        // supply data for X days
     offset: 0       // start with data for day today plus X days
 };
@@ -47,6 +50,10 @@ argv
         res.push(re);
         return res;
     }, [])
+    .option('-e, --episode-numbering [onscreen|xmltv_ns]', 'specify episode numbering system (can be used multiple times)', (en, ens) => {
+        ens.push(en);
+        return ens;
+    }, [])
     // baseline options
     .option('-n, --days [X]', 'supply data for X days', (days) => config.days = days)
     .option('-o, --offset [X]', 'start with data for day today plus X days', (offset) => config.offset = offset)
@@ -65,6 +72,9 @@ argv
 co(function* () {
     if (argv.channelFilter.length > 0)
         config.channelFilters = argv.channelFilter;
+
+    if (argv.episodeNumbering.length > 0)
+        config.episodeNumberings = argv.episodeNumbering;
 
     if (config.channelFilters)
         config.channelFilters = config.channelFilters.map(re => new RegExp(re));
@@ -152,8 +162,25 @@ co(function* () {
             if (program.category)
                 prog.startElement('category').writeAttribute('lang', 'kr').text(program.category).endElement();
 
-            if (program.episode)
-                prog.startElement('episode-num').writeAttribute('system', 'onscreen').text(program.episode).endElement();
+            if (program.episode) {
+                for (var en of config.episodeNumberings) {
+                    switch (en) {
+                        case 'onscreen':
+                            prog.startElement('episode-num').writeAttribute('system', 'onscreen').text(program.episode).endElement();
+                            break;
+                        case 'xmltv_ns':
+                            var se = program.season;
+                            var ep = parseInt(program.episode);
+                            if (!se) {
+                                var m = program.title.match(/시즌 ?(\d+)/);
+                                if (m)
+                                    se = +m[1];
+                            }
+                            prog.startElement('episode-num').writeAttribute('system', 'xmltv_ns').text(`${se ? se - 1 : ''}.${ep - 1}.`).endElement();
+                            break;
+                    }
+                }
+            }
 
             if (program.rebroadcast)
                 prog.startElement('previously-shown').endElement();

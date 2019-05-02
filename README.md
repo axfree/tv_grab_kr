@@ -21,15 +21,16 @@ tv_grab_kr grabber by axfree
 
 Options:
 
-  -h, --help                    output usage information
-  -v, --version                 output the version number
-  -l, --list-channels           list all available channels
-  -c, --list-channel-group      list all available channel group
-  -g, --channel-filter [regex]  select only channels matching regular expression
-  -n, --days [X]                supply data for X days
-  -o, --offset [X]              start with data for day today plus X days
-  -w, --output [FILENAME]       redirect xmltv output to the specified file
-  -s, --sock [SOCKET]           redirect xmltv output to the specified XMLTV socket
-      --description             print a description that identifies the grabber
-      --capabilities            list the capabilities that a grabber supports
+  -h, --help                                   output usage information
+  -v, --version                                output the version number
+  -l, --list-channels                          list all available channels
+  -c, --list-channel-group                     list all available channel group
+  -g, --channel-filter [regex]                 select only channels matching regular expression (can be used multiple times)
+  -e, --episode-numbering [onscreen|xmltv_ns]  specify episode numbering system (can be used multiple times)
+  -n, --days [X]                               supply data for X days
+  -o, --offset [X]                             start with data for day today plus X days
+  -w, --output [FILENAME]                      redirect xmltv output to the specified file
+  -s, --sock [SOCKET]                          redirect xmltv output to the specified XMLTV socket
+      --description                            print a description that identifies the grabber
+      --capabilities                           list the capabilities that a grabber supports
 </pre>
