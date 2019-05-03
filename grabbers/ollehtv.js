@@ -162,9 +162,9 @@ function *grab(config, argv) {
 
     // otm
     var channelGrabber = 'otm';
-    var res = yield request.get('http://menu.megatvdnp.co.kr:38080/app5/0/api/epg_chCategory?istest=0', {
+    var res = yield request.get('http://menu.megatvdnp.co.kr:38086/app6/api/epg_ch_category?istest=0%7D&main_view_yn=A', {
         headers: {
-            'User-Agent': 'OMS(compatible;ServiceType/OTN;DeviceType/Android;DeviceModel/Nexus5;OSType/Android;OSVersion/6.0;AppVersion/5.1.20)'
+            'User-Agent': 'OMS(compatible;ServiceType/OTM;DeviceType/Android;DeviceModel/Nexus5;OSType/Android;OSVersion/6.0;AppVersion/5.5.4)'
         },
         json: true
     });
@@ -179,15 +179,15 @@ function *grab(config, argv) {
             continue;
         }
 
-        var res = yield request.get(`http://menu.megatvdnp.co.kr:38080/app5/0/api/epg_chlist_5_1?istest=0&category_id=${cat.category_id}`, {
+        var res = yield request.get(`http://menu.megatvdnp.co.kr:38086/app6/api/epg_chlist?istest=0&category_id=${cat.category_id}`, {
             headers: {
-                'User-Agent': 'OMS(compatible;ServiceType/OTN;DeviceType/Android;DeviceModel/Nexus5;OSType/Android;OSVersion/6.0;AppVersion/5.1.20)'
+                'User-Agent': 'OMS(compatible;ServiceType/OTM;DeviceType/Android;DeviceModel/Nexus5;OSType/Android;OSVersion/6.0;AppVersion/5.5.4)'
             },
             json: true
         });
 
         for (var ch of res.body.data.list[0].list_channel) {
-            if (ch.type != 'EPG')
+            if (ch.type != 'EPG' && ch.type != 'SHOP')
                 continue;
 
             var channelNumber = ch.ch_no;
@@ -205,9 +205,9 @@ function *grab(config, argv) {
 
             console.log(channelFullName);
 
-            var res = yield request(`http://menu.megatvdnp.co.kr:38080/app5/0/api/epg_proglist?istest=0&ch_no=${channelNumber}`, {
+            var res = yield request(`http://menu.megatvdnp.co.kr:38086/app6/api/epg_proglist?istest=&ch_no=${channelNumber}`, {
                 headers: {
-                    'User-Agent': 'OMS(compatible;ServiceType/OTN;DeviceType/Android;DeviceModel/Nexus5;OSType/Android;OSVersion/6.0;AppVersion/5.1.20)'
+                    'User-Agent': 'OMS(compatible;ServiceType/OTM;DeviceType/Android;DeviceModel/Nexus5;OSType/Android;OSVersion/6.0;AppVersion/5.5.4)'
                 },
                 json: true
             });
