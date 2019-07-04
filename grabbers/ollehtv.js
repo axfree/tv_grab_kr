@@ -2,10 +2,17 @@
 
 'use strict';
 
-var request   = require("co-request");
 var $         = require('cheerio');
 var moment    = require('moment-timezone');
 var iconv     = require('iconv-lite');
+var request   = require("co-request").defaults({
+    headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36'
+    },
+    agentOptions: {
+        secureProtocol: 'TLSv1_method'
+    }
+});
 
 // channelGroups:
 //   otl:
@@ -43,8 +50,6 @@ var iconv     = require('iconv-lite');
 //     성인 유료채널
 //     가이드
 
-var ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36';
-
 var channelTypes = { 1:'otl', 2:'ots', 3:'otl-uhd', 4:'ots-uhd' };
 
 function *grab(config, argv) {
@@ -54,9 +59,6 @@ function *grab(config, argv) {
     for (var channelType of Object.keys(channelTypes)) {
         var channelGrabber = channelTypes[channelType];
         var res = yield request.post('https://tv.kt.com/', {
-            headers: {
-                'User-Agent': ua,
-            },
             form: {
                 parent_menu_id: 0,
                 service_ch_no: '',
@@ -84,9 +86,6 @@ function *grab(config, argv) {
             }
 
             var res = yield request.post('https://tv.kt.com/tv/channel/pChList.asp', {
-                headers: {
-                    'User-Agent': ua,
-                },
                 form: {
                     ch_type: channelType,           // 2
                     parent_menu_id: channelGroupId, // 1
@@ -171,7 +170,7 @@ function *grab(config, argv) {
 
     for (var cat of res.body.data.list) {
         var channelGroup = cat.category_name;
-        if (/전체|인기|오디오/.test(channelGroup))
+        if (/전체|인기|오디오|5G채널/.test(channelGroup))
             continue;
 
         if (argv.listChannelGroup) {

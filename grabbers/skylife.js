@@ -93,7 +93,7 @@ function *grab(config, argv) {
 
                     programs.push({
                         start: start,
-                        stop: moment(schedule.endtime + '+0900', 'YYYYMMDDHHmmssZ'),
+                        end: moment(schedule.endtime + '+0900', 'YYYYMMDDHHmmssZ'),
                         title: entities.decodeHTML(schedule.program_name),
                         subtitle: schedule.program_subname ? entities.decodeHTML(schedule.program_subname) : null,
                         category: schedule.program_category1,
