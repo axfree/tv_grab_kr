@@ -212,38 +212,40 @@ function *grab(config, argv) {
             });
 
             var programs = [];
-            var date = moment.tz('Asia/Seoul');
-            res.body.data.list.forEach((prog, idx) => {
-                var start = moment(date.format('YYYYMMDD') + prog.start_time + '+0900', 'YYYYMMDDHH:mmZ');
-                var end = moment(date.format('YYYYMMDD') + prog.end_time + '+0900', 'YYYYMMDDHH:mmZ');
-                if (start.diff(end) > 0) {
-                    if (idx == 0)
-                        start.add(-1, 'days');
-                    else
-                        end.add(1, 'days');
-                }
-                var program = {
-                    title: decodeURIComponent(prog.program_name.replace(/\+/g, ' ')).replace(/^방송중 /, ''),
-                    subtitle: decodeURIComponent(prog.program_subname.replace(/\+/g, ' ')),
-                    start: start,
-                    end: end,
-                    episode: prog.frequency ? prog.frequency + '회' : null,
-                    rebroadcast: (prog.rebroad == 'Y'),
-                    rating: +prog.rating,
-                    directors: prog.director,
-                    actors: prog.cast
-                };
+            if (res.body.data) {
+                var date = moment.tz('Asia/Seoul');
+                res.body.data.list.forEach((prog, idx) => {
+                    var start = moment(date.format('YYYYMMDD') + prog.start_time + '+0900', 'YYYYMMDDHH:mmZ');
+                    var end = moment(date.format('YYYYMMDD') + prog.end_time + '+0900', 'YYYYMMDDHH:mmZ');
+                    if (start.diff(end) > 0) {
+                        if (idx == 0)
+                            start.add(-1, 'days');
+                        else
+                            end.add(1, 'days');
+                    }
+                    var program = {
+                        title: decodeURIComponent(prog.program_name.replace(/\+/g, ' ')).replace(/^방송중 /, ''),
+                        subtitle: decodeURIComponent(prog.program_subname.replace(/\+/g, ' ')),
+                        start: start,
+                        end: end,
+                        episode: prog.frequency ? prog.frequency + '회' : null,
+                        rebroadcast: (prog.rebroad == 'Y'),
+                        rating: +prog.rating,
+                        directors: prog.director,
+                        actors: prog.cast
+                    };
 
-                if (program.subtitle) {
-                    var subtitleIndex = program.title.lastIndexOf(program.subtitle);
-                    if (subtitleIndex > 0)
-                        program.title = program.title.substring(0, subtitleIndex).trim();
+                    if (program.subtitle) {
+                        var subtitleIndex = program.title.lastIndexOf(program.subtitle);
+                        if (subtitleIndex > 0)
+                            program.title = program.title.substring(0, subtitleIndex).trim();
 
-                    program.subtitle = program.subtitle.replace(/^<(.*?)(>)?$/, (m, st, r) => r ? st : st.trim() + '...');
-                }
+                        program.subtitle = program.subtitle.replace(/^<(.*?)(>)?$/, (m, st, r) => r ? st : st.trim() + '...');
+                    }
 
-                programs.push(program);
-            });
+                    programs.push(program);
+                });
+            }
 
             channels[channelName] = {
                 icon: channelIcon,
