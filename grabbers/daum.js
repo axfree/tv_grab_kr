@@ -74,7 +74,7 @@ function *grab(config, argv) {
                         dls.each((idx, dl) => {
                             var m = $('dt', dl).text();
                             var program = {};
-                            program.grade = 0;
+                            // program.rating = 0;
                             program.start = moment(startDateKST).hours(h).minutes(m);
                             // console.log(program.start.format('YYYYMMDDHHmmss Z'));
                             var titles = $('dd', dl).children();
@@ -100,7 +100,7 @@ function *grab(config, argv) {
                                     else {
                                         var gradeMatch = text.match(/프로그램등급 (\d+)세/);
                                         if (gradeMatch)
-                                            program.grade = parseInt(gradeMatch[1]);
+                                            program.rating = parseInt(gradeMatch[1]);
                                     }
                                 }
                             });

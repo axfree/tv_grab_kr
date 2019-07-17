@@ -8,6 +8,25 @@ var entities  = require("entities");
 
 var ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36';
 
+// channelGroups:
+//   UHD
+//   skyTV
+//   지상파/종편
+//   경제/보도
+//   영화/시리즈
+//   드라마
+//   스포츠
+//   홈쇼핑/T커머스
+//   연예/오락/음악
+//   생활/레저/취미
+//   교양/정보/다큐
+//   어린이/만화/교육
+//   공공/공익/준공익
+//   종교
+//   유료/PPV
+//   해외
+//   오디오
+
 function *grab(config, argv) {
     var jar = request.jar();
     var res = yield request('https://www.skylife.co.kr/channel/epg/channelChart.do', {
@@ -17,7 +36,7 @@ function *grab(config, argv) {
         }
     });
     var genres = {};
-    res.body.replace(/getChannelList\('(\d+?)','(.+?)'\)/g, (m, id, name) => genres[id] = name);
+    res.body.replace(/getChannelList\('(\d+?)','(.+?)'\)/g, (m, id, name) => genres[id] = name.trim());
 
     var channels = [];
     for (var genreId of Object.keys(genres)) {

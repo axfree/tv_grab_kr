@@ -7,6 +7,7 @@ var $         = require('cheerio');
 var moment    = require('moment-timezone');
 var iconv     = require('iconv-lite');
 var delay     = require('delay');
+var entities  = require("entities");
 
 // channelGroups:
 // 5100 지상파
@@ -52,6 +53,7 @@ function *grab(config, argv) {
                 console.log(`btv:${genre.m_name}`);
         }
         else {
+            ch.m_name = entities.decodeHTML(ch.m_name);
             btvChannels.push({
                 no: ch.ch_no,
                 name: ch.m_name,
@@ -114,11 +116,11 @@ function *grab(config, argv) {
 
                 $('.flag_box > span', li).each((idx, span) => {
                     if ($(span).hasClass('flag06'))
-                        program.grade = 12;
+                        program.rating = 12;
                     else if ($(span).hasClass('flag07'))
-                        program.grade = 15;
+                        program.rating = 15;
                     else if ($(span).hasClass('flag08'))
-                        program.grade = 19;
+                        program.rating = 19;
                 })
 
                 programs.push(program);
