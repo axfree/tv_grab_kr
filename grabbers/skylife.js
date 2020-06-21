@@ -78,10 +78,11 @@ function *grab(config, argv) {
                 continue;
 
             if (channels[channelName]) {
-                console.log(channelName, 'skip');
+                // console.log(channelName, 'skip');
                 continue;
             }
-            console.log(channelFullName);
+            if (argv.debug)
+                console.log(channelFullName);
 
             var programs = [];
             var date = moment.tz('Asia/Seoul').startOf('day');

@@ -110,7 +110,8 @@ function *grab(config, argv) {
                 if (config.channelFilters.length > 0 && !config.channelFilters.some(re => channelFullName.match(re)))
                     continue;
 
-                console.log(channelFullName);
+                if (argv.debug)
+                    console.log(channelFullName);
 
                 var programs = [];
                 var date = moment.tz('Asia/Seoul').startOf('day');
@@ -202,7 +203,8 @@ function *grab(config, argv) {
             if (config.channelFilters.length > 0 && !config.channelFilters.some(re => channelFullName.match(re)))
                 continue;
 
-            console.log(channelFullName);
+            if (argv.debug)
+                console.log(channelFullName);
 
             var res = yield request(`http://menu.megatvdnp.co.kr:38086/app6/api/epg_proglist?istest=&ch_no=${channelNumber}`, {
                 headers: {

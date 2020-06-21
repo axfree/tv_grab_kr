@@ -52,7 +52,8 @@ function *grab(config, argv) {
                     // console.log(channelName, 'skip');
                     continue;
                 }
-                console.log(channelFullName);
+                if (argv.debug)
+                    console.log(channelFullName);
 
                 var res = yield request.get('http://search.daum.net/search' + $(a).attr('href'), {
                     headers: {

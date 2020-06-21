@@ -31,7 +31,8 @@ function *grab(config, argv) {
     if (config.channelFilters.length > 0 && !config.channelFilters.some(re => channelFullName.match(re)))
         return [];
 
-    console.log(channelFullName);
+    if (argv.debug)
+        console.log(channelFullName);
 
     var programs = [];
     var date = moment.tz('Asia/Seoul').startOf('day').add(-1, 'days');  // start from yesterday

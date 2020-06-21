@@ -31,7 +31,8 @@ function *grab(config, argv) {
     if (config.channelFilters.length > 0 && !config.channelFilters.some(re => channelFullName.match(re)))
         return [];
 
-    console.log(channelFullName);
+    if (argv.debug)
+        console.log(channelFullName);
 
     var res = yield request.get('http://www.polaristv.com/schedule.asp', {
         headers: {

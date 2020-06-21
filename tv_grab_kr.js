@@ -67,6 +67,7 @@ argv
         console.log('baseline');
         process.exit(0);
     })
+    .option('-d, --debug', 'print debugging information')
     .parse(process.argv);
 
 co(function* () {

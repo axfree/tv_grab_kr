@@ -47,7 +47,8 @@ function *grab(config, argv) {
             if (config.channelFilters.length > 0 && !config.channelFilters.some(re => channelFullName.match(re)))
                 continue;
 
-            console.log(channelFullName);
+            if (argv.debug)
+                console.log(channelFullName);
 
             var programs = [];
             var date = moment().utcOffset(9).startOf('day');

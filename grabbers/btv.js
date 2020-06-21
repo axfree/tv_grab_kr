@@ -32,7 +32,7 @@ var entities  = require("entities");
 var ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36';
 
 function *grab(config, argv) {
-    var res = yield request.post('http://m.skbroadband.com/content/realtime/Realtime_List_Ajax.do', {
+    var res = yield request.post('https://m.skbroadband.com/content/realtime/Realtime_List_Ajax.do', {
         headers: {
             'User-Agent': ua,
         },
@@ -79,7 +79,8 @@ function *grab(config, argv) {
         if (config.channelFilters.length > 0 && !config.channelFilters.some(re => channelFullName.match(re)))
             continue;
 
-        console.log(channelFullName);
+        if (argv.debug)
+            console.log(channelFullName);
 
         var programs = [];
         var date = moment.tz('Asia/Seoul').startOf('day');
