@@ -14,21 +14,21 @@ function *grab(config, argv) {
 
     for (var u1 in broadcastTypes) {
         var broadcastType = broadcastTypes[u1];
-        var res = yield request.get('https://m.search.naver.com/p/csearch/content/batchrender.nhn', {
+        var res = yield request.get('https://m.search.naver.com/p/csearch/content/nqapirender.nhn', {
             qs: {
-                callback: 'jQuery11240016264589754078962_1546610007667',
+                callback: '',           // jQuery112403933569637440637_1631181885852
                 pkid: 66,
                 where: 'nexearch',
-                fileKey: 'ScheduleChannelList',
-                u1: u1,
-                _: Date.now(),            // 1546610007670
-            }
+                u1: u1,                 // 100
+                key: 'ScheduleChannelList',
+                _: Date.now(),          // 1631181885855
+            },
+            json: true
         });
-        var br = JSON.parse(res.body.match(/jQuery.*?\((.*)?\)/)[1]);
 
-        var genres = $('.genre_list', br.dataHtml);
+        var genres = $('.genre_list > .item', res.body.dataHtml);
         for (var genre of genres.get()) {
-            var channelGroup = $(genre).prev('strong').text();
+            var channelGroup = $(genre).parent().prev('strong').text();
             if (argv.listChannelGroup) {
                 console.log(channelGroup ? `naver:${broadcastType}:${channelGroup}` : `naver:${broadcastType}`);
                 continue;
