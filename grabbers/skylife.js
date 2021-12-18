@@ -2,137 +2,130 @@
 
 'use strict';
 
-var request   = require("co-request");
 var moment    = require('moment-timezone');
 var entities  = require("entities");
-
-var ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36';
+var request   = require("co-request").defaults({
+    headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'
+    },
+    agentOptions: {
+        rejectUnauthorized: false
+    }
+});
 
 // channelGroups:
 //   UHD
 //   skyTV
 //   지상파/종편
-//   경제/보도
-//   영화/시리즈
+//   연예/오락
+//   음악
 //   드라마
+//   경제/보도
 //   스포츠
-//   홈쇼핑/T커머스
-//   연예/오락/음악
+//   영화
+//   외국시리즈
 //   생활/레저/취미
 //   교양/정보/다큐
-//   어린이/만화/교육
-//   공공/공익/준공익
+//   어린이/만화
+//   홈쇼핑/T커머스
 //   종교
-//   유료/PPV
+//   공공/공익
 //   해외
+//   유료/PPV
 //   오디오
 
 function *grab(config, argv) {
-    var jar = request.jar();
-    var res = yield request('https://www.skylife.co.kr/channel/epg/channelChart.do', {
-        jar: jar,
-        headers: {
-            'User-Agent': ua,
-        }
-    });
-    var genres = {};
-    res.body.replace(/getChannelList\('(\d+?)','(.+?)'\)/g, (m, id, name) => genres[id] = name.trim());
+    var channels = {};
 
-    var channels = [];
-    for (var genreId of Object.keys(genres)) {
-        if (argv.listChannelGroup) {
-            console.log(`skylife:${genres[genreId]}`);
-            continue;
-        }
-        var res = yield request.post('https://www.skylife.co.kr/channel/epg/channelScheduleListInfo.do', {
-            jar: jar,
-            headers: {
-                'User-Agent': ua,
-                // Referer: 'https://www.skylife.co.kr/channel/epg/channelChart.do'
-            },
-            form: {
-                area: 'out',
-                date_type: 'now',
-                // airdate: date.format('YYYY-MM-DD'),         // 2017-05-08
-                pk_epg_mapp: '',
-                fd_mapp_cd: genreId,                        // 4003
-                searchColumn: '',
-                searchString: '',
-                selectString: ''
-            },
+    var date = moment.tz('Asia/Seoul').startOf('day');
+    for (var d = 0; d < 2; d++) {
+        var ymd = date.format('YYYYMMDD');
+        var res = yield request.get(`https://www.skylife.co.kr/api/api/public/tv/schedule/${ymd}?0=${ymd}`, {
             json: true
         });
 
-        for (var channel of res.body.channelListInfo) {
-            var channelName = channel.fd_channel_name.replace(/(.+) (SBS|KBS1|KBS2|MBC)$/, '$2 $1')
-                                                     .replace(/^MBC(경남)/, 'MBC $1')
-                                                     .replace(/^(진주)MBC/, 'MBC $1')
-                                                     .replace(/^jtbc/i, 'JTBC');
-            var channelFullName = `skylife:${genres[genreId]}:${channelName}`;
-            if (argv.listChannels) {
-                console.log(channelFullName);
+        for (var genre of res.body) {
+            if (argv.listChannelGroup) {
+                console.log(`skylife:${genre.name}`);
                 continue;
             }
 
-            if (config.channelFilters.length > 0 && !config.channelFilters.some(re => channelFullName.match(re)))
-                continue;
+            for (var channel of genre.channels) {
+                // {
+                //     "id": "797",
+                //     "name": "MBC",
+                //     "number": "11",
+                //     "logoUrl": "/upload/channel/201903/MBC_logo.png",
+                //     "homepage": "http://www.imbc.com",
+                //     "phone": "02-780-0011",
+                //     "description": "콘텐츠 중심의 미디어",
+                //     "programs": [
+                //         ...
+                //     ]
+                // },
 
-            if (channels[channelName]) {
-                // console.log(channelName, 'skip');
-                continue;
-            }
-            if (argv.debug)
-                console.log(channelFullName);
+                var channelName = channel.name;
+                var channelFullName = `skylife:${genre.name}:${channelName}`;
+                if (argv.listChannels) {
+                    console.log(channelFullName);
+                    continue;
+                }
 
-            var programs = [];
-            var date = moment.tz('Asia/Seoul').startOf('day');
-            for (var d = 0; d < 2; d++) {
-                var res = yield request.post('https://www.skylife.co.kr/channel/epg/channelScheduleListInfo.do', {
-                    jar: jar,
-                    headers: {
-                        'User-Agent': ua,
-                    },
-                    form: {
-                        area: 'detail',
-                        date_type: 'now',
-                        airdate: date.format('YYYY-MM-DD'),     // 2017-05-08
-                        pk_epg_mapp: '',
-                        fd_mapp_cd: genreId,                    // 4003
-                        fd_channel_id: channel.fd_channel_id,   // 798
-                        searchColumn: '',
-                        searchString: '',
-                        selectString: '',
-                    },
-                    json: true
-                });
+                if (config.channelFilters.length > 0 && !config.channelFilters.some(re => channelFullName.match(re)))
+                    continue;
 
-                res.body.scheduleListIn.forEach(schedule => {
-                    var start = moment(schedule.starttime + '+0900', 'YYYYMMDDHHmmssZ');
+                if (argv.debug)
+                    console.log(channelFullName);
+
+                if (d == 0) {
+                    channels[channelName] = {
+                        icon: 'https://static.skylife.co.kr' + channel.logoUrl,
+                        number: channel.number,
+                        group: genre.name,
+                        programs: []
+                    };
+                }
+
+                for (var program of channel.programs) {
+                    var start = moment(program.startTime + '+0900', 'YYYYMMDDHHmmssZ');
                     if (start.diff(date) < 0)
-                        return;
+                        continue;
 
-                    programs.push({
+                    // {
+                    //     "id": "R111158706",
+                    //     "name": "배드 앤 크레이지",
+                    //     "mainCategory": "드라마",
+                    //     "subCategory": "액션",
+                    //     "cast": "이동욱,위하준,한지은,차학연,성지루,원현준,이상홍",
+                    //     "summary": "유능하지만 '나쁜 놈' 수열이 정의로운 '미친 놈' K를 만나 겪게 되는 인성회복 히어로 드라마",
+                    //     "grade": "15",
+                    //     "startTime": "20211217224500",
+                    //     "endTime": "20211218002300",
+                    //     "rebroad": false,
+                    //     "live": false,
+                    //     "multiplexVoice": false,
+                    //     "dvs": false,
+                    //     "cc": true,
+                    //     "suhwa": false
+                    // },
+
+                    channels[channelName].programs.push({
                         start: start,
-                        end: moment(schedule.endtime + '+0900', 'YYYYMMDDHHmmssZ'),
-                        title: entities.decodeHTML(schedule.program_name),
-                        subtitle: schedule.program_subname ? entities.decodeHTML(schedule.program_subname) : null,
-                        category: schedule.program_category1,
-                        episode: schedule.episode_id ? schedule.episode_id + '회' : null,
-                        rebroadcast: schedule.rebroad,
-                        desc: schedule.summary ? entities.decodeHTML(schedule.summary) : null,
-                        rating: schedule.grade
+                        end: moment(program.endTime + '+0900', 'YYYYMMDDHHmmssZ'),
+                        title: entities.decodeHTML(program.name),
+                        // subtitle: program.program_subname ? entities.decodeHTML(program.program_subname) : null,
+                        // category: `${program.mainCategory} > ${program.subCategory}`,
+                        category: program.mainCategory,
+                        // episode: program.episode_id ? program.episode_id + '회' : null,
+                        rebroadcast: program.rebroad,
+                        desc: program.summary ? entities.decodeHTML(program.summary) : null,
+                        rating: +program.grade
                     });
-                });
-
-                date.add(1, 'days');
+                }
             }
-
-            channels[channelName] = {
-                icon: 'http:' + channel.fd_logo_path,
-                group: genres[genreId], // genres[channel.fd_genre_name],
-                programs: programs
-            };
         }
+
+        date.add(1, 'days');
     }
 
     return channels;
