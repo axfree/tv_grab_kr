@@ -10,36 +10,32 @@ var delay     = require('delay');
 var entities  = require("entities");
 
 // channelGroups:
-// 5100 지상파
-// 7800 종합편성채널
-// 6600 애니
-// 5600 키즈
-// 5800 영화
-// 6300 시리즈
-// 6700 드라마/예능
-// 7200 라이프
-// 6400 취미/레저
-// 5900 스포츠
-// 5300 교육
-// 5700 홈쇼핑
-// 7400 공공
-// 7600 연예/오락
-// 6900 종교
-// 7300 교양/정보
-// 7700 뉴스/경제
-// 6501 보도
+//   지상파/종편
+//   홈쇼핑
+//   영화
+//   드라마/시리즈
+//   스포츠/레저
+//   연예/오락
+//   애니/키즈
+//   뉴스/경제
+//   라이프/정보
+//   교육/공공/종교
+//   성인(유료)
 
 var ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36';
 
 function *grab(config, argv) {
-    var res = yield request.post('https://m.skbroadband.com/content/realtime/Realtime_List_Ajax.do', {
+    // https://www.bworld.co.kr/myb/product/btv-chnl/chnl-frmt-list.do
+    var res = yield request.get('https://www.bworld.co.kr/content/realtime/realtime_list.ajax', {
         headers: {
             'User-Agent': ua,
         },
-        form: {
+        qs: {
+            pack: 'PM50305785', // B tv All+ 캐치온
             // key_depth1: '',
             // key_depth2: '',
-            pack: 'B캐치온',
+            // key_depth3: '',
+            // key_depth2_name: '',
         },
         json: true
     });
@@ -60,6 +56,7 @@ function *grab(config, argv) {
                 group: genre.m_name,
                 d1: genre.c_menu,
                 d2: ch.c_menu,
+                id_svc: ch.id_svc,
             });
             if (argv.listChannels)
                 console.log(`btv:${genre.m_name}:${ch.m_name}`);
@@ -70,8 +67,6 @@ function *grab(config, argv) {
         return null;
 
     var channels = {};
-    var startDate = moment.tz('Asia/Seoul').startOf('day');
-    var endDate = moment(startDate).add(Math.min(7, config.days), 'days');
 
     for (var channel of btvChannels) {
         var channelFullName = `btv:${channel.group}:${channel.name}`;
@@ -84,54 +79,70 @@ function *grab(config, argv) {
 
         var programs = [];
         var date = moment.tz('Asia/Seoul').startOf('day');
-        for (var d = 0; d < 2; d++) {
-            var res = yield request.get('http://m.skbroadband.com/content/realtime/Channel_List.do', {
-                headers: {
-                    'User-Agent': ua,
-                },
-                qs: {
-                    key_depth1: channel.d1,                 // 5100
-                    key_depth2: channel.d2,                 // 14
-                    key_depth3: date.format('YYYYMMDD'),    // 20181113
-                },
-                encoding: null
-            });
 
-            var lis = $('#uiScheduleTabContent > div > ol > li', iconv.decode(res.body, 'cp949'));
-            lis.each((idx, li) => {
-                var program = {};
+        var res = yield request.get(`https://www.bworld.co.kr/myb/core-prod/product/btv-channel/week-frmt-list`, {
+            headers: {
+                'User-Agent': ua,
+                'Referer': 'https://www.bworld.co.kr/myb/product/btv-chnl/chnl-frmt-list.do',
+                // 'Referer': 'https://www.bworld.co.kr/myb/product/btv-chnl/chnl-frmt-list.do?cdMenu=0&idSvc=12&gubun=week',
+            },
+            qs: {
+                gubun: 'week',
+                stdDt: date.format('YYYYMMDD'),
+                idSvc: channel.id_svc   // 12
+            },
+            json: true
+        });
 
-                var [ hh, mm ] = $('p.time', li).text().split(':');    // 06:30
-                program.start = moment(date).hours(+hh).minutes(+mm);
+        res.body.result.chnlFrmtInfoList.sort((a, b) => a.dtEventStart - b.dtEventStart).forEach(r => {
+            // {
+            //     "idSvc": "12",
+            //     "nmTitle": "수목드라마 개소리(7회)(재)",
+            //     "cdRating": "15",
+            //     "dtEventStart": "20241017111000",
+            //     "dtEventEnd": "20241017121500",
+            //     "eventDt": "20241017",
+            //     "eventMmdd": "1017",
+            //     "eventTime": "11:10",
+            //     "eventHour": "11",
+            //     "eventMinute": "10",
+            //     "onAirYn": "Y",
+            //     "cdGenre": "1",
+            //     "cdCategory": "",
+            //     "nmSynop": "",
+            //     "idEvent": "8512",
+            //     "idMaster": null,
+            //     "dispYn": "Y",
+            //     "delYn": "N"
+            // }
+            var program = {};
 
-                var m = $('p.cont', li).contents().first().text().trim().match(/(.*?)(?:\s*[\(<]([\d,회]+)[\)>])?(?:\s*<([^<]*?)>)?(\(재\))?$/);
-                if (m) {
-                    program.title = m[1];
-                    if (m[2])
-                        program.episode = m[2];
-                    if (m[3])
-                        program.subtitle = m[3];
-                    if (m[4])
-                        program.rebroadcast = true;
-                }
+            program.start = moment(r.dtEventStart + '+0900', 'YYYYMMDDHHmmssZ');
+            program.end = moment(r.dtEventEnd + '+0900', 'YYYYMMDDHHmmssZ');
 
-                $('.flag_box > span', li).each((idx, span) => {
-                    if ($(span).hasClass('flag06'))
-                        program.rating = 12;
-                    else if ($(span).hasClass('flag07'))
-                        program.rating = 15;
-                    else if ($(span).hasClass('flag08'))
-                        program.rating = 19;
-                })
+            var m = r.nmTitle.match(/(.*?)(?:\s*[\(<]([\d,회]+)[\)>])?(?:\s*<([^<]*?)>)?(\(재\))?$/);
+            if (!m)
+                throw new Error('no title');
 
-                programs.push(program);
-            });
+            program.title = m[1];
+            if (m[2])
+                program.episode = m[2];
+            if (m[3])
+                program.subtitle = m[3];
+            if (m[4])
+                program.rebroadcast = true;
 
-            yield delay(200);
-        }
+            if (r.cdRating != '0')
+                program.rating = +r.cdRating;   // 7, 12, 15, 19
+
+            programs.push(program);
+        });
+
+        yield delay(200);
 
         channels[channel.name] = {
-            icon: `http://m.btvplus.co.kr/data/btvplus/admobd/channelLogo/nsepg_${channel.d2}.png`,
+            // icon: `http://m.btvplus.co.kr/data/btvplus/admobd/channelLogo/nsepg_${channel.d2}.png`,
+            number: channel.no,
             group: channel.group,
             programs: programs
         };
