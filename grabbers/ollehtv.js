@@ -5,6 +5,7 @@
 var $         = require('cheerio');
 var moment    = require('moment-timezone');
 var iconv     = require('iconv-lite');
+var delay     = require('delay');
 var request   = require("co-request").defaults({
     headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36'
@@ -101,6 +102,7 @@ function *grab(config, argv) {
                 var channelNumber = m[1];
                 var channelName = decodeURIComponent(m[2]);
                 var channelFullName = `${channelGrabber}:${channelGroup}:${channelName}`;
+                var channelIcon = null;
 
                 if (argv.listChannels) {
                     console.log(channelFullName);
@@ -125,8 +127,15 @@ function *grab(config, argv) {
                         },
                         encoding: null
                     });
+                    var body = iconv.decode(res.body, 'cp949');
 
-                    var trs = $('.tb_schedule > tbody > tr', iconv.decode(res.body, 'cp949'));
+                    if (!channelIcon) {
+                        var src = $('.b_logo > img', body).attr('src');
+                        if (src)
+                            channelIcon = new URL(src, 'https://tv.kt.com').href;
+                    }
+
+                    var trs = $('.tb_schedule > tbody > tr', body);
                     trs.each((idx, tr) => {
                         var tds = $('td', tr);
                         var h = $(tds).eq(0).text();
@@ -148,11 +157,14 @@ function *grab(config, argv) {
                     });
 
                     date.add(1, 'days');
+
+                    yield delay(100);
                 }
 
                 channels[channelName] = {
-                    icon: channelGrabber.startsWith('otl') ? `https://tv.kt.com/relatedmaterial/ch_logo/live/${channelNumber}.png`  // 80x30
-                                                           : `https://tv.kt.com/relatedmaterial/ch_logo/skylife/ch_${channelNumber}.png`,
+                    icon: channelIcon ?? (channelGrabber.startsWith('otl') ? `https://tv.kt.com/relatedmaterial/ch_logo/live/${channelNumber}.png`  // 80x30
+                                                                           : `https://tv.kt.com/relatedmaterial/ch_logo/skylife/ch_${channelNumber}.png`),
+                    number: channelNumber,
                     group: channelGroup,
                     programs: programs
                 };
@@ -251,6 +263,7 @@ function *grab(config, argv) {
 
             channels[channelName] = {
                 icon: channelIcon,
+                number: channelNumber,
                 group: channelGroup,
                 programs: programs
             };

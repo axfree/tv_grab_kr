@@ -121,6 +121,11 @@ co(function* () {
         var ch = new XMLWriter;
         ch.startElement('channel').writeAttribute('id', channelName)
                                   .writeElement('display-name', channelName);
+        if ('number' in channel) {
+            ch.writeElement('display-name', channel.number);
+            ch.writeElement('display-name', `${channel.number} ${channelName}`);
+        }
+
         if (channel.icon)
             ch.startElement('icon').writeAttribute('src', channel.icon).endElement();
         doc.writeRaw(ch);
